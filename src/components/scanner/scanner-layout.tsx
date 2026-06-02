@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { useReducedMotion, motion, AnimatePresence } from 'framer-motion';
 import {
@@ -51,7 +51,7 @@ export interface ScannerLayoutProps {
   onNewProduct?:   () => void;
 }
 
-// ─── Mode config (color + icon per mode) ─────────────────────────────────────
+// ─── Mode config ──────────────────────────────────────────────────────────────
 
 type ModeConfig = { color: string; shadow: string; icon: React.ReactNode };
 
@@ -84,16 +84,20 @@ export function ScannerLayout({
   const { activeMembership } = useActiveBranch();
   const reduced = useReducedMotion();
 
-  const [isActive,   setIsActive]   = useState(false);
+  // isActive=true on mount → camera scans immediately, no button press needed
+  const [isActive,   setIsActive]   = useState(true);
   const [flash,      setFlash]      = useState(false);
   const [flashLight, setFlashLight] = useState(false);
   const [search,     setSearch]     = useState('');
   const [products,   setProducts]   = useState<ScannerProduct[]>([]);
 
+  // Timer ref for 3-second auto-restart after successful scan
+  const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const tenantId = activeMembership?.tenant_id;
   const cfg      = MODE_CONFIG[mode];
 
-  // ── Live search ───────────────────────────────────────────────────────────
+  // ── Live search filter ────────────────────────────────────────────────────
   const searchResults = search.trim()
     ? products
         .filter(
@@ -116,22 +120,37 @@ export function ScannerLayout({
       .then(({ data }) => setProducts((data ?? []) as ScannerProduct[]));
   }, [tenantId]);
 
-  // ── Scan callback (gated by isActive) ────────────────────────────────────
+  // ── Cleanup restart timer on unmount ──────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+    };
+  }, []);
+
+  // ── Scan callback: gated by isActive, auto-restarts after 3 s ────────────
   const handleScan = useCallback(
     (code: string) => {
       if (!isActive) return;
+
+      // Deactivate immediately to prevent double-fire
       setIsActive(false);
+      if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+
       beep();
       if (navigator.vibrate) navigator.vibrate([70, 30, 70]);
       if (!reduced) { setFlash(true); setTimeout(() => setFlash(false), 350); }
+
       onScanned(code);
+
+      // Auto-restart scanning after 3 seconds (ready for next item)
+      restartTimerRef.current = setTimeout(() => setIsActive(true), 3000);
     },
     [isActive, beep, reduced, onScanned],
   );
 
   const scanner = useBarcodeScanner({ elementId: READER_ID, onScan: handleScan });
 
-  // ── Always-on camera ──────────────────────────────────────────────────────
+  // ── Always-on camera: start in continuous mode on mount ──────────────────
   useEffect(() => {
     scanner.setMode('continuous');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -146,21 +165,32 @@ export function ScannerLayout({
       const video = el?.querySelector('video') as HTMLVideoElement | null;
       const track = (video?.srcObject as MediaStream | null)?.getVideoTracks()[0];
       await track?.applyConstraints({ advanced: [{ torch: next } as MediaTrackConstraintSet] });
-    } catch { /* torch not supported on this device */ }
+    } catch { /* torch not supported */ }
   }
 
-  // ── SCAN button ───────────────────────────────────────────────────────────
+  // ── SCAN button: toggle pause / resume ────────────────────────────────────
   function handleScanPress() {
-    if (isActive) return;
-    if (scanner.status === 'idle' || scanner.status === 'error') scanner.start();
-    setIsActive(true);
+    if (scanner.status === 'idle' || scanner.status === 'error') {
+      // Camera not running — start it and activate
+      scanner.start();
+      setIsActive(true);
+      return;
+    }
+    // Cancel any pending auto-restart
+    if (restartTimerRef.current) {
+      clearTimeout(restartTimerRef.current);
+      restartTimerRef.current = null;
+    }
+    // Toggle active state
+    setIsActive((prev) => !prev);
   }
 
   // ── Denied / Error ────────────────────────────────────────────────────────
+  // z-40 keeps scanner below result sheets (shadcn Sheet = z-50)
   if (scanner.status === 'denied' || scanner.status === 'error') {
     return (
       <div
-        className="fixed inset-x-0 top-0 z-[60] flex flex-col items-center justify-center gap-6 bg-[#0a0a0a] p-6 text-center"
+        className="fixed inset-x-0 top-0 z-40 flex flex-col items-center justify-center gap-6 bg-[#0a0a0a] p-6 text-center"
         style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' }}
       >
         <button onClick={onClose} className="absolute end-4 top-4 text-white/60">
@@ -185,9 +215,10 @@ export function ScannerLayout({
   }
 
   // ── Main render ───────────────────────────────────────────────────────────
+  // z-40: result sheets (z-50) appear on top when open
   return (
     <div
-      className="fixed inset-x-0 top-0 z-[60] flex flex-col bg-[#0a0a0a]"
+      className="fixed inset-x-0 top-0 z-40 flex flex-col bg-[#0a0a0a]"
       style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' }}
       onPointerDown={unlock}
     >
@@ -211,7 +242,7 @@ export function ScannerLayout({
         </button>
       </div>
 
-      {/* Camera view */}
+      {/* Camera */}
       <div className="relative shrink-0 bg-black" style={{ height: '55dvh', minHeight: 220 }}>
         <div id={READER_ID} className="absolute inset-0 qr-reader-host" />
         <ScanOverlay flash={flash} />
@@ -281,9 +312,10 @@ export function ScannerLayout({
           </AnimatePresence>
         </div>
 
-        {/* Center: SCAN button + quick action buttons */}
+        {/* Center: SCAN button (pause/resume toggle) + quick buttons */}
         <div className="flex flex-1 flex-col items-center justify-center gap-5 px-4 pb-4">
-          {/* SCAN button — mode-colored */}
+
+          {/* SCAN button */}
           <motion.button
             onClick={handleScanPress}
             whileTap={reduced ? {} : { scale: 0.92 }}
@@ -291,6 +323,7 @@ export function ScannerLayout({
             className="relative flex h-20 w-20 flex-col items-center justify-center gap-1.5 rounded-full disabled:opacity-50 transition-transform"
             style={{ backgroundColor: cfg.color, boxShadow: `0 0 40px ${cfg.shadow}` }}
           >
+            {/* Pulse rings while actively scanning */}
             {isActive && !reduced && (
               <>
                 <motion.span
@@ -313,7 +346,7 @@ export function ScannerLayout({
             </span>
           </motion.button>
 
-          {/* Quick action buttons */}
+          {/* Quick buttons */}
           <div className="flex w-full gap-3">
             <button
               onClick={() => toast.info('Coming soon')}
