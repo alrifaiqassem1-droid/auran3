@@ -204,7 +204,7 @@ BEGIN
     WHEN 'UPDATE' THEN
       CASE TG_TABLE_NAME
         WHEN 'inventory_counts' THEN
-          CASE WHEN NEW.status = 'closed' AND OLD.status != 'closed' THEN 'count_close' ELSE 'update' END
+          CASE WHEN (to_jsonb(NEW)->>'status') = 'closed' AND (to_jsonb(OLD)->>'status') != 'closed' THEN 'count_close' ELSE 'update' END
         ELSE 'update'
       END
     WHEN 'DELETE' THEN 'delete'
