@@ -15,10 +15,7 @@ import {
   ScanLine,
   PenLine,
   RotateCcw,
-  ZoomIn,
-  ZoomOut,
   Package,
-  Loader2,
   PlusCircle,
   Minus,
   Plus,
@@ -38,11 +35,10 @@ import { enqueueAndRun } from '@/lib/offline/queue';
 import { lookupProduct } from '@/lib/scan/lookup-product';
 import { useActiveBranch } from '@/hooks/use-active-branch';
 import { useCelebration } from '@/hooks/use-celebration';
-import { useBarcodeScanner } from '@/hooks/use-barcode-scanner';
-import { useBeep } from '@/hooks/use-beep';
 import { SupplierSelect } from './supplier-select';
 import { ReceiveLine, type CartItem } from './receive-line';
 import { ProductForm } from '@/components/products/product-form';
+import { ScannerLayout, type ScannerProduct } from '@/components/scanner/scanner-layout';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -53,115 +49,6 @@ type ProductRow = {
   barcode: string | null;
   cost_price: number;
 };
-
-// ─── Scanner Overlay ──────────────────────────────────────────────────────────
-
-const READER_ID = 'receive-qr-reader';
-
-function ReceiveScannerOverlay({
-  onClose,
-  onScanned,
-}: {
-  onClose: () => void;
-  onScanned: (barcode: string) => void;
-}) {
-  const tR = useTranslations('Receiving');
-  const { beep, unlock } = useBeep();
-  const [flash, setFlash] = useState(false);
-
-  const handleScan = useCallback(
-    (code: string) => {
-      beep();
-      if (navigator.vibrate) navigator.vibrate(60);
-      setFlash(true);
-      setTimeout(() => setFlash(false), 250);
-      onClose();
-      void onScanned(code);
-    },
-    [beep, onClose, onScanned],
-  );
-
-  const scanner = useBarcodeScanner({ elementId: READER_ID, onScan: handleScan });
-
-  useEffect(() => {
-    scanner.start();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-black" onPointerDown={unlock}>
-      <div
-        className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-3 py-3"
-        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)' }}
-      >
-        <button
-          onClick={() => { scanner.stop(); onClose(); }}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm active:scale-90 transition-transform"
-        >
-          <X className="h-5 w-5" />
-        </button>
-        <span className="rounded-full bg-black/60 backdrop-blur-sm px-3 py-1.5 text-[11px] font-semibold text-white/90">
-          {tR('scannerTitle')}
-        </span>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => scanner.adjustZoom(-0.5)}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm"
-          >
-            <ZoomOut className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => scanner.adjustZoom(0.5)}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm"
-          >
-            <ZoomIn className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
-      <div id={READER_ID} className="h-full w-full qr-reader-host" />
-
-      {scanner.status === 'starting' && (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/70">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        </div>
-      )}
-
-      {(scanner.status === 'denied' || scanner.status === 'error') && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/90 px-6 text-center">
-          <p className="text-white font-semibold text-base">
-            {scanner.status === 'denied' ? '🔒 Camera access denied' : '⚠️ Camera error'}
-          </p>
-          <p className="text-white/60 text-sm">
-            {scanner.status === 'denied'
-              ? 'Allow camera access in your browser settings, then try again.'
-              : 'Camera not working? Check that no other app is using it.'}
-          </p>
-          <Button
-            onClick={() => scanner.start()}
-            className="rounded-full gap-2 px-5 py-2.5"
-            size="sm"
-          >
-            <RotateCcw className="h-4 w-4" />
-            Camera not working? Tap to retry
-          </Button>
-        </div>
-      )}
-
-      <AnimatePresence>
-        {flash && (
-          <motion.div
-            className="pointer-events-none absolute inset-0 bg-white/20"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.12 }}
-          />
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
 
 // ─── Item Detail Sheet ────────────────────────────────────────────────────────
 
@@ -181,11 +68,11 @@ function ItemDetailSheet({
   onConfirm: (item: CartItem) => void;
 }) {
   const t = useTranslations('Receiving');
-  const [qty, setQty]       = useState(1);
-  const [unit, setUnit]     = useState<'pcs' | 'kg'>('pcs');
-  const [cost, setCost]     = useState(0);
+  const [qty,    setQty]    = useState(1);
+  const [unit,   setUnit]   = useState<'pcs' | 'kg'>('pcs');
+  const [cost,   setCost]   = useState(0);
   const [expiry, setExpiry] = useState('');
-  const [lot, setLot]       = useState('');
+  const [lot,    setLot]    = useState('');
 
   useEffect(() => {
     if (open && product) {
@@ -203,12 +90,8 @@ function ItemDetailSheet({
   const minQty = isKg ? 0.1 : 1;
   const total  = qty * cost;
 
-  function decrement() {
-    setQty((q) => parseFloat(Math.max(minQty, q - step).toFixed(3)));
-  }
-  function increment() {
-    setQty((q) => parseFloat((q + step).toFixed(3)));
-  }
+  function decrement() { setQty((q) => parseFloat(Math.max(minQty, q - step).toFixed(3))); }
+  function increment() { setQty((q) => parseFloat((q + step).toFixed(3))); }
 
   function handleConfirm() {
     if (!product) return;
@@ -267,9 +150,7 @@ function ItemDetailSheet({
                   onClick={() => { setUnit('pcs'); if (isKg) setQty(1); }}
                   className={cn(
                     'px-3 py-2.5 text-xs font-semibold transition-colors',
-                    unit === 'pcs'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:text-foreground',
+                    unit === 'pcs' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
                   pcs
@@ -278,9 +159,7 @@ function ItemDetailSheet({
                   onClick={() => { setUnit('kg'); if (!isKg) setQty(1); }}
                   className={cn(
                     'px-3 py-2.5 text-xs font-semibold transition-colors',
-                    unit === 'kg'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:text-foreground',
+                    unit === 'kg' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
                   kg
@@ -346,10 +225,7 @@ function ItemDetailSheet({
             />
           </div>
 
-          <Button
-            className="h-12 w-full rounded-xl text-sm font-semibold"
-            onClick={handleConfirm}
-          >
+          <Button className="h-12 w-full rounded-xl text-sm font-semibold" onClick={handleConfirm}>
             {isEditing ? 'Update item' : t('addToList')}
           </Button>
         </div>
@@ -382,18 +258,10 @@ function AddManuallySheet({
       (p.barcode && p.barcode.includes(search)),
   );
 
-  function reset() {
-    setSearch('');
-  }
+  function reset() { setSearch(''); }
 
   return (
-    <Sheet
-      open={open}
-      onOpenChange={(v) => {
-        if (!v) reset();
-        onOpenChange(v);
-      }}
-    >
+    <Sheet open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
       <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-[24px] pb-8">
         <SheetHeader className="mb-4">
           <SheetTitle>{t('manualAddTitle')}</SheetTitle>
@@ -416,12 +284,7 @@ function AddManuallySheet({
                   size="sm"
                   variant="outline"
                   className="gap-2 rounded-xl"
-                  onClick={() => {
-                    const term = search.trim();
-                    reset();
-                    onOpenChange(false);
-                    onCreateProduct(term);
-                  }}
+                  onClick={() => { const term = search.trim(); reset(); onOpenChange(false); onCreateProduct(term); }}
                 >
                   <PlusCircle className="h-4 w-4" />
                   Add new product
@@ -432,11 +295,7 @@ function AddManuallySheet({
             filtered.map((p) => (
               <button
                 key={p.id}
-                onClick={() => {
-                  reset();
-                  onOpenChange(false);
-                  onSelect(p);
-                }}
+                onClick={() => { reset(); onOpenChange(false); onSelect(p); }}
                 className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 active:bg-muted/60"
               >
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
@@ -463,9 +322,9 @@ function AddManuallySheet({
 // ─── ReceiveCart ──────────────────────────────────────────────────────────────
 
 interface Props {
-  suppliers: { id: string; name: string }[];
-  categories: { id: string; name: string }[];
-  products: ProductRow[];
+  suppliers:      { id: string; name: string }[];
+  categories:     { id: string; name: string }[];
+  products:       ProductRow[];
   initialBarcode?: string | null;
 }
 
@@ -473,28 +332,28 @@ export function ReceiveCart({ suppliers, categories, products, initialBarcode }:
   const t = useTranslations('Receiving');
   const { activeBranchId, activeMembership } = useActiveBranch();
   const { celebrate } = useCelebration();
-  const router = useRouter();
+  const router  = useRouter();
   const reduced = useReducedMotion();
 
-  const [cart, setCart]                     = useState<CartItem[]>([]);
-  const [supplierId, setSupplierId]         = useState('');
-  const [reference, setReference]           = useState('');
-  const [showScanner, setShowScanner]       = useState(false);
-  const [showManual, setShowManual]         = useState(false);
-  const [isConfirming, setIsConfirming]     = useState(false);
-  const [pendingBarcode, setPendingBarcode] = useState<string | null>(null);
+  const [cart,            setCart]            = useState<CartItem[]>([]);
+  const [supplierId,      setSupplierId]      = useState('');
+  const [reference,       setReference]       = useState('');
+  const [showScanner,     setShowScanner]     = useState(false);
+  const [showManual,      setShowManual]      = useState(false);
+  const [isConfirming,    setIsConfirming]    = useState(false);
+  const [pendingBarcode,  setPendingBarcode]  = useState<string | null>(null);
   const [showProductForm, setShowProductForm] = useState(false);
 
-  // Detail sheet
-  const [showDetail, setShowDetail]       = useState(false);
+  // Detail sheet state
+  const [showDetail,    setShowDetail]    = useState(false);
   const [detailProduct, setDetailProduct] = useState<ProductRow | null>(null);
   const [detailInitial, setDetailInitial] = useState<Partial<CartItem>>({});
-  const [editingIndex, setEditingIndex]   = useState<number | null>(null);
+  const [editingIndex,  setEditingIndex]  = useState<number | null>(null);
 
   const initDone = useRef(false);
   const tenantId = activeMembership?.tenant_id;
 
-  // ── Open detail sheet for a new item ──────────────────────────────────────
+  // ── Open detail sheet for a new item ─────────────────────────────────────
   function openDetail(product: ProductRow, initial: Partial<CartItem> = {}) {
     setDetailProduct(product);
     setDetailInitial({ cost_price: product.cost_price, unit: product.unit, ...initial });
@@ -507,11 +366,8 @@ export function ReceiveCart({ suppliers, categories, products, initialBarcode }:
     const line = cart[index];
     setDetailProduct(
       products.find((p) => p.id === line.product_id) ?? {
-        id:         line.product_id,
-        name:       line.product_name,
-        unit:       line.unit,
-        barcode:    null,
-        cost_price: line.cost_price,
+        id: line.product_id, name: line.product_name,
+        unit: line.unit, barcode: null, cost_price: line.cost_price,
       },
     );
     setDetailInitial(line);
@@ -521,25 +377,20 @@ export function ReceiveCart({ suppliers, categories, products, initialBarcode }:
 
   // ── Confirm from detail sheet ─────────────────────────────────────────────
   function handleDetailConfirm(item: CartItem) {
-    if (editingIndex !== null) {
-      updateLine(editingIndex, item);
-    } else {
-      addLine(item);
-    }
+    if (editingIndex !== null) updateLine(editingIndex, item);
+    else addLine(item);
     setShowDetail(false);
     setDetailProduct(null);
     setEditingIndex(null);
   }
 
-  // ── Add a line (merges duplicate product) ─────────────────────────────────
+  // ── Add a line (merges duplicate) ─────────────────────────────────────────
   function addLine(item: CartItem) {
     setCart((prev) => {
       const lastIdx = prev.map((l) => l.product_id).lastIndexOf(item.product_id);
       if (lastIdx !== -1) {
         toast.info(t('duplicateScan'));
-        return prev.map((l, i) =>
-          i === lastIdx ? { ...l, quantity: l.quantity + item.quantity } : l,
-        );
+        return prev.map((l, i) => i === lastIdx ? { ...l, quantity: l.quantity + item.quantity } : l);
       }
       return [...prev, item];
     });
@@ -552,10 +403,9 @@ export function ReceiveCart({ suppliers, categories, products, initialBarcode }:
     lookupProduct(initialBarcode, tenantId).then((product) => {
       if (product) {
         openDetail({
-          id:         product.id,
-          name:       product.name,
-          unit:       product.unit as 'pcs' | 'kg',
-          barcode:    initialBarcode,
+          id: product.id, name: product.name,
+          unit: product.unit as 'pcs' | 'kg',
+          barcode: initialBarcode,
           cost_price: (product.cost_price as number) ?? 0,
         });
       } else {
@@ -566,35 +416,45 @@ export function ReceiveCart({ suppliers, categories, products, initialBarcode }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialBarcode, tenantId]);
 
-  // ── Scanner callback ──────────────────────────────────────────────────────
+  // ── Scanner callback (via ScannerLayout) ──────────────────────────────────
   const handleScanned = useCallback(
     (barcode: string) => {
+      setShowScanner(false);
       if (!tenantId) return;
       lookupProduct(barcode, tenantId).then((product) => {
         if (product) {
-          setDetailProduct({
-            id:         product.id,
-            name:       product.name,
-            unit:       product.unit as 'pcs' | 'kg',
+          openDetail({
+            id: product.id, name: product.name,
+            unit: product.unit as 'pcs' | 'kg',
             barcode,
             cost_price: (product.cost_price as number) ?? 0,
           });
-          setDetailInitial({
-            cost_price: (product.cost_price as number) ?? 0,
-            unit:       product.unit as 'pcs' | 'kg',
-          });
-          setEditingIndex(null);
-          setShowDetail(true);
         } else {
           setPendingBarcode(barcode);
           setShowProductForm(true);
         }
       });
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [tenantId],
   );
 
-  // ── After ProductForm closes — look up by barcode and open detail sheet ───
+  // ── Product selected from scanner search ──────────────────────────────────
+  function handleScannerProductSelect(p: ScannerProduct) {
+    setShowScanner(false);
+    openDetail({ id: p.id, name: p.name, unit: p.unit, barcode: p.barcode, cost_price: p.cost_price });
+  }
+
+  // ── Product selected from manual sheet ────────────────────────────────────
+  function handleManualSelect(product: ProductRow) { openDetail(product); }
+
+  function handleManualCreate(searchTerm: string) {
+    const looksLikeBarcode = searchTerm.length >= 4 && !/\s/.test(searchTerm);
+    setPendingBarcode(looksLikeBarcode ? searchTerm : null);
+    setShowProductForm(true);
+  }
+
+  // ── After ProductForm closes ──────────────────────────────────────────────
   function handleProductFormClose(open: boolean) {
     if (!open) {
       setShowProductForm(false);
@@ -602,15 +462,7 @@ export function ReceiveCart({ suppliers, categories, products, initialBarcode }:
         const barcode = pendingBarcode;
         setPendingBarcode(null);
         lookupProduct(barcode, tenantId).then((p) => {
-          if (p) {
-            openDetail({
-              id:         p.id,
-              name:       p.name,
-              unit:       p.unit as 'pcs' | 'kg',
-              barcode,
-              cost_price: (p.cost_price as number) ?? 0,
-            });
-          }
+          if (p) openDetail({ id: p.id, name: p.name, unit: p.unit as 'pcs' | 'kg', barcode, cost_price: (p.cost_price as number) ?? 0 });
         });
       } else {
         setPendingBarcode(null);
@@ -618,24 +470,10 @@ export function ReceiveCart({ suppliers, categories, products, initialBarcode }:
     }
   }
 
-  // ── Manual product selected ───────────────────────────────────────────────
-  function handleManualSelect(product: ProductRow) {
-    openDetail(product);
-  }
-
-  // ── "Add new product" from manual search ─────────────────────────────────
-  function handleManualCreate(searchTerm: string) {
-    // Use as barcode prefill only if it looks like a barcode (no spaces)
-    const looksLikeBarcode = searchTerm.length >= 4 && !/\s/.test(searchTerm);
-    setPendingBarcode(looksLikeBarcode ? searchTerm : null);
-    setShowProductForm(true);
-  }
-
   // ── Line update / remove ──────────────────────────────────────────────────
   function updateLine(index: number, updated: Partial<CartItem>) {
     setCart((prev) => prev.map((l, i) => (i === index ? { ...l, ...updated } : l)));
   }
-
   function removeLine(index: number) {
     setCart((prev) => prev.filter((_, i) => i !== index));
   }
@@ -668,9 +506,7 @@ export function ReceiveCart({ suppliers, categories, products, initialBarcode }:
         return;
       }
 
-      setCart([]);
-      setSupplierId('');
-      setReference('');
+      setCart([]); setSupplierId(''); setReference('');
       router.refresh();
     } finally {
       setIsConfirming(false);
@@ -742,11 +578,9 @@ export function ReceiveCart({ suppliers, categories, products, initialBarcode }:
             ))}
           </AnimatePresence>
 
-          {/* Summary row */}
+          {/* Summary */}
           <div className="flex items-center justify-between rounded-xl bg-muted/60 px-4 py-3">
-            <span className="text-sm text-muted-foreground">
-              {t('lineCount', { n: cart.length })}
-            </span>
+            <span className="text-sm text-muted-foreground">{t('lineCount', { n: cart.length })}</span>
             <span className="text-lg font-bold tabular-nums">{formatAED(totalCost)}</span>
           </div>
         </div>
@@ -770,11 +604,15 @@ export function ReceiveCart({ suppliers, categories, products, initialBarcode }:
         </Button>
       </div>
 
-      {/* Scanner overlay */}
+      {/* Scanner overlay — uses shared ScannerLayout */}
       {showScanner && (
-        <ReceiveScannerOverlay
-          onClose={() => setShowScanner(false)}
+        <ScannerLayout
+          mode="receive"
+          title={t('scannerTitle')}
           onScanned={handleScanned}
+          onProductSelect={handleScannerProductSelect}
+          onClose={() => setShowScanner(false)}
+          onNewProduct={() => { setShowScanner(false); setPendingBarcode(null); setShowProductForm(true); }}
         />
       )}
 

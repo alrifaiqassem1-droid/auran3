@@ -6,13 +6,13 @@ import { useRouter } from '@/i18n/navigation';
 import { useActiveBranch } from '@/hooks/use-active-branch';
 import { lookupProduct } from '@/lib/scan/lookup-product';
 import { ScannerLayout, type ScannerProduct } from '@/components/scanner/scanner-layout';
-import { DamageResultSheet } from '@/components/scanner/result-sheets/damage-result';
+import { StocktakeResultSheet } from '@/components/scanner/result-sheets/stocktake-result';
 import type { Product } from '@/types/db';
 
 type Result = { barcode: string; product: Product | null };
 
-export default function DamagedPage() {
-  const t                    = useTranslations('Damage');
+export default function StocktakePage() {
+  const t                    = useTranslations('Stocktake');
   const router               = useRouter();
   const { activeMembership } = useActiveBranch();
   const tenantId             = activeMembership?.tenant_id;
@@ -35,13 +35,13 @@ export default function DamagedPage() {
   return (
     <>
       <ScannerLayout
-        mode="damage"
+        mode="stocktake"
         title={t('pageTitle')}
         onScanned={handleScanned}
         onProductSelect={handleProductSelect}
         onClose={() => router.push('/dashboard')}
       />
-      <DamageResultSheet
+      <StocktakeResultSheet
         open={!!result}
         onClose={() => setResult(null)}
         barcode={result?.barcode ?? ''}

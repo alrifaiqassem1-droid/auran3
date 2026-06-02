@@ -94,7 +94,26 @@
     "addNewProduct": "Add New Product",
     "searchManuallyBtn": "Search Manually",
     "noSearchResults": "No results",
-    "scanning": "Scanning..."
+    "scanning": "Scanning...",
+    "currentStock": "Current Stock",
+    "paymentCash": "Cash",
+    "paymentCard": "Card",
+    "paymentCredit": "Credit",
+    "confirmSale": "Confirm Sale",
+    "saleConfirmed": "Sale recorded",
+    "newPrice": "New Price",
+    "savePrice": "Save Price",
+    "priceUpdated": "Price updated",
+    "productNotFound": "Product not found",
+    "confirmCount": "Confirm Count",
+    "countConfirmed": "Count recorded",
+    "expectedQty": "Expected",
+    "countedQty": "Counted",
+    "difference": "Difference"
+  },
+  "Stocktake": {
+    "pageTitle": "Stocktake",
+    "pageSubtitle": "Scan and count inventory"
   },
   "Products": {
     "pageTitle": "Products",

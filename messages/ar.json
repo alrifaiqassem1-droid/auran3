@@ -94,7 +94,26 @@
     "addNewProduct": "أضف منتج جديد",
     "searchManuallyBtn": "بحث يدوي",
     "noSearchResults": "لا توجد نتائج",
-    "scanning": "جارٍ المسح..."
+    "scanning": "جارٍ المسح...",
+    "currentStock": "المخزون الحالي",
+    "paymentCash": "نقد",
+    "paymentCard": "بطاقة",
+    "paymentCredit": "آجل",
+    "confirmSale": "تأكيد البيع",
+    "saleConfirmed": "تم تسجيل البيع",
+    "newPrice": "السعر الجديد",
+    "savePrice": "حفظ السعر",
+    "priceUpdated": "تم تحديث السعر",
+    "productNotFound": "المنتج غير موجود",
+    "confirmCount": "تأكيد العدّ",
+    "countConfirmed": "تم تسجيل العدّ",
+    "expectedQty": "المتوقّع",
+    "countedQty": "المعدود",
+    "difference": "الفرق"
+  },
+  "Stocktake": {
+    "pageTitle": "الجرد",
+    "pageSubtitle": "امسح وعدّ المخزون"
   },
   "Products": {
     "pageTitle": "المنتجات",
