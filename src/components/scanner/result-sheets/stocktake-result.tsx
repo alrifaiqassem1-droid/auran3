@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Package, ClipboardList } from 'lucide-react';
+import { Package, ClipboardList, Loader2 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,8 +15,6 @@ import { enqueueAndRun } from '@/lib/offline/queue';
 import { cn } from '@/lib/utils';
 import type { Product } from '@/types/db';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 type Props = {
   open:    boolean;
   onClose: () => void;
@@ -24,23 +22,27 @@ type Props = {
   product: Product | null;
 };
 
-// ─── StocktakeResultSheet ─────────────────────────────────────────────────────
+// Round to 3 decimal places, strip trailing zeros
+function fmtQty(n: number): string {
+  return parseFloat(n.toFixed(3)).toString();
+}
 
 export function StocktakeResultSheet({ open, onClose, barcode, product }: Props) {
   const t                                    = useTranslations('Scanner');
   const { activeMembership, activeBranchId } = useActiveBranch();
   const tenantId                             = activeMembership?.tenant_id;
 
-  const [expectedQty, setExpectedQty] = useState<number | null>(null);
-  const [countedQty,  setCountedQty]  = useState(0);
-  const [submitting,  setSubmitting]  = useState(false);
+  const [expectedQty,  setExpectedQty]  = useState<number | null>(null);
+  const [loadingStock, setLoadingStock] = useState(false);
+  const [countedQty,   setCountedQty]   = useState(0);
+  const [submitting,   setSubmitting]   = useState(false);
 
-  // Fetch expected stock from DB
+  // Fetch expected stock from DB when sheet opens
   useEffect(() => {
-    if (!open || !product || !tenantId || !activeBranchId) {
-      setExpectedQty(null);
-      return;
-    }
+    if (!open || !product) { setExpectedQty(null); return; }
+    if (!tenantId || !activeBranchId) { setExpectedQty(0); return; }
+
+    setLoadingStock(true);
     createClient()
       .from('stock_batches')
       .select('quantity')
@@ -48,14 +50,21 @@ export function StocktakeResultSheet({ open, onClose, barcode, product }: Props)
       .eq('branch_id', activeBranchId)
       .eq('tenant_id', tenantId)
       .gt('quantity', 0)
-      .then(({ data }) => setExpectedQty(data?.reduce((s, b) => s + b.quantity, 0) ?? 0));
+      .then(({ data }) => {
+        setExpectedQty(data?.reduce((s, b) => s + b.quantity, 0) ?? 0);
+        setLoadingStock(false);
+      });
   }, [open, product?.id, tenantId, activeBranchId]);
 
+  // Reset count input on every open
   useEffect(() => {
     if (open) setCountedQty(0);
   }, [open]);
 
-  const diff = expectedQty !== null ? countedQty - expectedQty : null;
+  // Live difference (rounded for kg products)
+  const diff = expectedQty !== null
+    ? parseFloat((countedQty - expectedQty).toFixed(3))
+    : null;
 
   async function handleSubmit() {
     if (!product || !activeBranchId) return;
@@ -83,6 +92,7 @@ export function StocktakeResultSheet({ open, onClose, barcode, product }: Props)
       <SheetContent side="bottom" className="max-h-[75dvh] overflow-y-auto rounded-t-[20px] pb-safe">
         {product ? (
           <>
+            {/* Header */}
             <SheetHeader className="pb-3">
               <div className="flex items-start gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-500/10">
@@ -107,34 +117,45 @@ export function StocktakeResultSheet({ open, onClose, barcode, product }: Props)
             <Separator className="mb-4" />
 
             <div className="space-y-4 pb-4">
-              {/* Expected vs counted */}
+              {/* Expected / Counted / Diff summary grid */}
               <div className="grid grid-cols-3 gap-3 rounded-xl bg-muted/50 p-3">
                 <div className="text-center">
                   <p className="text-[10px] text-muted-foreground mb-1">{t('expectedQty')}</p>
-                  <p className="text-lg font-bold tabular-nums">
-                    {expectedQty ?? '—'}
-                  </p>
+                  {loadingStock ? (
+                    <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground/40" />
+                  ) : (
+                    <p className="text-lg font-bold tabular-nums">
+                      {expectedQty !== null ? fmtQty(expectedQty) : '—'}
+                    </p>
+                  )}
                 </div>
                 <div className="text-center">
                   <p className="text-[10px] text-muted-foreground mb-1">{t('countedQty')}</p>
-                  <p className="text-lg font-bold tabular-nums text-blue-500">{countedQty}</p>
+                  <p className="text-lg font-bold tabular-nums text-blue-500">
+                    {fmtQty(countedQty)}
+                  </p>
                 </div>
                 <div className="text-center">
                   <p className="text-[10px] text-muted-foreground mb-1">{t('difference')}</p>
-                  <p className={cn(
-                    'text-lg font-bold tabular-nums',
-                    diff === null ? '' :
-                    diff > 0 ? 'text-emerald-500' :
-                    diff < 0 ? 'text-red-500' : 'text-muted-foreground',
-                  )}>
-                    {diff !== null ? (diff > 0 ? `+${diff}` : diff) : '—'}
+                  <p
+                    className={cn(
+                      'text-lg font-bold tabular-nums',
+                      diff === null  ? 'text-muted-foreground' :
+                      diff  >  0     ? 'text-emerald-500'      :
+                      diff  <  0     ? 'text-red-500'          :
+                                       'text-muted-foreground',
+                    )}
+                  >
+                    {diff !== null
+                      ? (diff > 0 ? `+${fmtQty(diff)}` : fmtQty(diff))
+                      : '—'}
                   </p>
                 </div>
               </div>
 
               {/* Counted qty input */}
               <div>
-                <p className="mb-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {t('countedQty')}
                 </p>
                 <Input
@@ -143,6 +164,7 @@ export function StocktakeResultSheet({ open, onClose, barcode, product }: Props)
                   step={product.unit === 'kg' ? '0.001' : '1'}
                   min="0"
                   value={countedQty}
+                  autoFocus
                   onFocus={(e) => e.target.select()}
                   onChange={(e) => {
                     const v = product.unit === 'kg'
@@ -159,15 +181,23 @@ export function StocktakeResultSheet({ open, onClose, barcode, product }: Props)
                 onClick={handleSubmit}
                 disabled={submitting}
               >
-                {submitting ? '...' : t('confirmCount')}
+                {submitting ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    ...
+                  </span>
+                ) : t('confirmCount')}
               </Button>
             </div>
           </>
         ) : (
+          /* Product not found */
           <div className="py-8 text-center">
-            <Package className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
+            <Package className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
             <p className="text-sm font-medium text-muted-foreground">{t('productNotFound')}</p>
-            {barcode && <p className="mt-1 font-mono text-xs text-muted-foreground/60">{barcode}</p>}
+            {barcode && (
+              <p className="mt-1 font-mono text-xs text-muted-foreground/60">{barcode}</p>
+            )}
             <Button variant="outline" className="mt-4 rounded-xl" onClick={onClose}>
               {t('searchManuallyBtn')}
             </Button>
