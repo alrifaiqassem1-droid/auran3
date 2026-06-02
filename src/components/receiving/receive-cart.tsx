@@ -18,9 +18,10 @@ import {
   ZoomIn,
   ZoomOut,
   Package,
-  Check,
-  PlusCircle,
   Loader2,
+  PlusCircle,
+  Minus,
+  Plus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,7 +65,7 @@ function ReceiveScannerOverlay({
   onClose: () => void;
   onScanned: (barcode: string) => void;
 }) {
-  const tR    = useTranslations('Receiving');
+  const tR = useTranslations('Receiving');
   const { beep, unlock } = useBeep();
   const [flash, setFlash] = useState(false);
 
@@ -72,10 +73,8 @@ function ReceiveScannerOverlay({
     (code: string) => {
       beep();
       if (navigator.vibrate) navigator.vibrate(60);
-      // Flash feedback then close immediately — no popup shown
       setFlash(true);
       setTimeout(() => setFlash(false), 250);
-      // Close the camera first, then process in background
       onClose();
       void onScanned(code);
     },
@@ -91,9 +90,10 @@ function ReceiveScannerOverlay({
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-black" onPointerDown={unlock}>
-      {/* Header */}
-      <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-3 py-3"
-           style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)' }}>
+      <div
+        className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-3 py-3"
+        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)' }}
+      >
         <button
           onClick={() => { scanner.stop(); onClose(); }}
           className="flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm active:scale-90 transition-transform"
@@ -119,17 +119,14 @@ function ReceiveScannerOverlay({
         </div>
       </div>
 
-      {/* Camera container — fills screen */}
       <div id={READER_ID} className="h-full w-full qr-reader-host" />
 
-      {/* Loading indicator while camera initialises */}
       {scanner.status === 'starting' && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/70">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
         </div>
       )}
 
-      {/* Camera error / permission denied */}
       {(scanner.status === 'denied' || scanner.status === 'error') && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/90 px-6 text-center">
           <p className="text-white font-semibold text-base">
@@ -151,7 +148,6 @@ function ReceiveScannerOverlay({
         </div>
       )}
 
-      {/* Flash on scan */}
       <AnimatePresence>
         {flash && (
           <motion.div
@@ -167,42 +163,194 @@ function ReceiveScannerOverlay({
   );
 }
 
-// ─── Unknown Barcode Sheet ────────────────────────────────────────────────────
+// ─── Item Detail Sheet ────────────────────────────────────────────────────────
 
-function UnknownBarcodeSheet({
+function ItemDetailSheet({
   open,
-  barcode,
-  onAddProduct,
-  onCancel,
+  onOpenChange,
+  product,
+  initial,
+  isEditing,
+  onConfirm,
 }: {
   open: boolean;
-  barcode: string;
-  onAddProduct: () => void;
-  onCancel: () => void;
+  onOpenChange: (v: boolean) => void;
+  product: ProductRow | null;
+  initial: Partial<CartItem>;
+  isEditing: boolean;
+  onConfirm: (item: CartItem) => void;
 }) {
   const t = useTranslations('Receiving');
+  const [qty, setQty]       = useState(1);
+  const [unit, setUnit]     = useState<'pcs' | 'kg'>('pcs');
+  const [cost, setCost]     = useState(0);
+  const [expiry, setExpiry] = useState('');
+  const [lot, setLot]       = useState('');
+
+  useEffect(() => {
+    if (open && product) {
+      setQty(initial.quantity ?? 1);
+      setUnit(initial.unit ?? product.unit);
+      setCost(initial.cost_price ?? product.cost_price ?? 0);
+      setExpiry(initial.expiry_date ?? '');
+      setLot(initial.lot_number ?? '');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const isKg   = unit === 'kg';
+  const step   = isKg ? 0.1 : 1;
+  const minQty = isKg ? 0.1 : 1;
+  const total  = qty * cost;
+
+  function decrement() {
+    setQty((q) => parseFloat(Math.max(minQty, q - step).toFixed(3)));
+  }
+  function increment() {
+    setQty((q) => parseFloat((q + step).toFixed(3)));
+  }
+
+  function handleConfirm() {
+    if (!product) return;
+    onConfirm({
+      product_id:   product.id,
+      product_name: product.name,
+      unit,
+      quantity:     qty > 0 ? qty : minQty,
+      cost_price:   cost >= 0 ? cost : 0,
+      expiry_date:  expiry || null,
+      lot_number:   lot.trim() || null,
+    });
+  }
+
   return (
-    <Sheet open={open} onOpenChange={(v) => !v && onCancel()}>
-      <SheetContent side="bottom" className="rounded-t-[24px] pb-safe">
-        <SheetHeader className="mb-6">
-          <SheetTitle className="text-center">{t('unknownBarcode')}</SheetTitle>
-          <p className="text-center font-mono text-xs text-muted-foreground">{barcode}</p>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto rounded-t-[24px] pb-safe">
+        <SheetHeader className="mb-5">
+          <SheetTitle className="truncate">{product?.name ?? ''}</SheetTitle>
         </SheetHeader>
-        <div className="space-y-3 pb-4">
+
+        <div className="space-y-5 pb-4">
+          {/* Quantity + unit toggle */}
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t('quantity')}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={decrement}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-muted/40 active:scale-95 transition-transform"
+              >
+                <Minus className="h-4 w-4" />
+              </button>
+              <Input
+                type="number"
+                inputMode={isKg ? 'decimal' : 'numeric'}
+                step={step}
+                min={minQty}
+                value={qty}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => {
+                  const v = isKg ? parseFloat(e.target.value) : parseInt(e.target.value, 10) || 0;
+                  if (!isNaN(v)) setQty(Math.max(minQty, v));
+                }}
+                className="h-11 flex-1 text-center text-base font-bold tabular-nums"
+              />
+              <button
+                onClick={increment}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-muted/40 active:scale-95 transition-transform"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+              <div className="flex shrink-0 overflow-hidden rounded-xl border border-border/60">
+                <button
+                  onClick={() => { setUnit('pcs'); if (isKg) setQty(1); }}
+                  className={cn(
+                    'px-3 py-2.5 text-xs font-semibold transition-colors',
+                    unit === 'pcs'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  pcs
+                </button>
+                <button
+                  onClick={() => { setUnit('kg'); if (!isKg) setQty(1); }}
+                  className={cn(
+                    'px-3 py-2.5 text-xs font-semibold transition-colors',
+                    unit === 'kg'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  kg
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Cost price */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t('costPrice')}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Total:{' '}
+                <span className="font-semibold text-foreground tabular-nums">{formatAED(total)}</span>
+              </p>
+            </div>
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 select-none text-sm text-muted-foreground">
+                AED
+              </span>
+              <Input
+                type="number"
+                inputMode="decimal"
+                step="0.001"
+                min="0"
+                value={cost}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => setCost(parseFloat(e.target.value) || 0)}
+                className="h-11 pl-12 tabular-nums"
+              />
+            </div>
+          </div>
+
+          {/* Expiry date */}
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t('expiryDate')}{' '}
+              <span className="normal-case font-normal text-muted-foreground/60">(optional)</span>
+            </p>
+            <Input
+              type="date"
+              value={expiry}
+              onChange={(e) => setExpiry(e.target.value)}
+              className="h-11"
+            />
+          </div>
+
+          {/* Lot / Batch */}
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Lot / Batch #{' '}
+              <span className="normal-case font-normal text-muted-foreground/60">(optional)</span>
+            </p>
+            <Input
+              type="text"
+              placeholder="e.g. LOT-2024-001"
+              value={lot}
+              onChange={(e) => setLot(e.target.value)}
+              className="h-11"
+            />
+          </div>
+
           <Button
-            className="h-13 w-full gap-2 rounded-xl text-sm font-semibold"
-            onClick={onAddProduct}
+            className="h-12 w-full rounded-xl text-sm font-semibold"
+            onClick={handleConfirm}
           >
-            <PlusCircle className="h-4 w-4" />
-            {t('createProductInline')}
-          </Button>
-          <Button
-            variant="outline"
-            className="h-12 w-full gap-2 rounded-xl text-sm"
-            onClick={onCancel}
-          >
-            <X className="h-4 w-4" />
-            {t('cancel')}
+            {isEditing ? 'Update item' : t('addToList')}
           </Button>
         </div>
       </SheetContent>
@@ -216,21 +364,18 @@ function AddManuallySheet({
   open,
   onOpenChange,
   products,
-  onAdd,
+  onSelect,
+  onCreateProduct,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   products: ProductRow[];
-  onAdd: (item: CartItem) => void;
+  onSelect: (product: ProductRow) => void;
+  onCreateProduct: (searchTerm: string) => void;
 }) {
   const t = useTranslations('Receiving');
   const [search, setSearch] = useState('');
-  const [selectedId, setSelectedId] = useState('');
-  const [qty, setQty] = useState(1);
-  const [cost, setCost] = useState(0);
-  const [expiry, setExpiry] = useState('');
 
-  const selected = products.find((p) => p.id === selectedId);
   const filtered = products.filter(
     (p) =>
       p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -239,30 +384,6 @@ function AddManuallySheet({
 
   function reset() {
     setSearch('');
-    setSelectedId('');
-    setQty(1);
-    setCost(0);
-    setExpiry('');
-  }
-
-  function handleSelect(p: ProductRow) {
-    setSelectedId(p.id);
-    setCost(p.cost_price);
-    setSearch('');
-  }
-
-  function handleAdd() {
-    if (!selected) return;
-    onAdd({
-      product_id: selected.id,
-      product_name: selected.name,
-      unit: selected.unit,
-      quantity: qty > 0 ? qty : 1,
-      cost_price: cost >= 0 ? cost : 0,
-      expiry_date: expiry || null,
-    });
-    onOpenChange(false);
-    reset();
   }
 
   return (
@@ -278,107 +399,62 @@ function AddManuallySheet({
           <SheetTitle>{t('manualAddTitle')}</SheetTitle>
         </SheetHeader>
 
-        {!selected ? (
-          <div className="space-y-2">
-            <Input
-              autoFocus
-              placeholder={t('selectProductPlaceholder')}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <div className="max-h-52 overflow-y-auto rounded-xl border border-border/60 divide-y divide-border/40">
-              {filtered.length === 0 ? (
-                <p className="px-4 py-6 text-center text-sm text-muted-foreground">{t('noProducts')}</p>
-              ) : (
-                filtered.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => handleSelect(p)}
-                    className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 active:bg-muted/60"
-                  >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                      <Package className="h-4 w-4 text-primary" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{p.name}</p>
-                      {p.barcode && (
-                        <p className="font-mono text-[11px] text-muted-foreground">{p.barcode}</p>
-                      )}
-                    </div>
-                    <Badge variant="secondary" className="shrink-0 text-[10px] px-1.5 py-0 uppercase">
-                      {p.unit}
-                    </Badge>
-                  </button>
-                ))
+        <Input
+          autoFocus
+          placeholder={t('selectProductPlaceholder')}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="mb-3"
+        />
+
+        <div className="max-h-64 overflow-y-auto rounded-xl border border-border/60 divide-y divide-border/40">
+          {filtered.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
+              <p className="text-sm text-muted-foreground">{t('noProducts')}</p>
+              {search.trim() && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-2 rounded-xl"
+                  onClick={() => {
+                    const term = search.trim();
+                    reset();
+                    onOpenChange(false);
+                    onCreateProduct(term);
+                  }}
+                >
+                  <PlusCircle className="h-4 w-4" />
+                  Add new product
+                </Button>
               )}
             </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-2 rounded-xl border border-border/60 bg-muted/30 px-3 py-2.5">
-              <div className="flex items-center gap-2 min-w-0">
-                <Check className="h-4 w-4 shrink-0 text-primary" />
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">{selected.name}</p>
-                  <p className="text-[11px] text-muted-foreground uppercase">{selected.unit}</p>
-                </div>
-              </div>
+          ) : (
+            filtered.map((p) => (
               <button
-                onClick={() => setSelectedId('')}
-                className="shrink-0 rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                key={p.id}
+                onClick={() => {
+                  reset();
+                  onOpenChange(false);
+                  onSelect(p);
+                }}
+                className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 active:bg-muted/60"
               >
-                <X className="h-4 w-4" />
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                  <Package className="h-4 w-4 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{p.name}</p>
+                  {p.barcode && (
+                    <p className="font-mono text-[11px] text-muted-foreground">{p.barcode}</p>
+                  )}
+                </div>
+                <Badge variant="secondary" className="shrink-0 text-[10px] px-1.5 py-0 uppercase">
+                  {p.unit}
+                </Badge>
               </button>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <p className="mb-1 text-[10px] text-muted-foreground">{t('quantity')}</p>
-                <Input
-                  type="number"
-                  inputMode={selected.unit === 'kg' ? 'decimal' : 'numeric'}
-                  step={selected.unit === 'kg' ? '0.001' : '1'}
-                  min="0.001"
-                  value={qty}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => {
-                    const v = selected.unit === 'kg'
-                      ? parseFloat(e.target.value)
-                      : parseInt(e.target.value, 10) || 0;
-                    setQty(v || 1);
-                  }}
-                  className="h-10 text-center text-sm tabular-nums"
-                />
-              </div>
-              <div>
-                <p className="mb-1 text-[10px] text-muted-foreground">{t('costPrice')}</p>
-                <Input
-                  type="number"
-                  inputMode="decimal"
-                  step="0.001"
-                  min="0"
-                  value={cost}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => setCost(parseFloat(e.target.value) || 0)}
-                  className="h-10 text-center text-sm tabular-nums"
-                />
-              </div>
-              <div>
-                <p className="mb-1 text-[10px] text-muted-foreground">{t('expiryDate')}</p>
-                <Input
-                  type="date"
-                  value={expiry}
-                  onChange={(e) => setExpiry(e.target.value)}
-                  className="h-10 text-[11px] px-2"
-                />
-              </div>
-            </div>
-
-            <Button className="h-12 w-full rounded-xl text-sm font-semibold" onClick={handleAdd}>
-              {t('addToList')}
-            </Button>
-          </div>
-        )}
+            ))
+          )}
+        </div>
       </SheetContent>
     </Sheet>
   );
@@ -400,20 +476,62 @@ export function ReceiveCart({ suppliers, categories, products, initialBarcode }:
   const router = useRouter();
   const reduced = useReducedMotion();
 
-  const [cart, setCart]             = useState<CartItem[]>([]);
-  const [supplierId, setSupplierId] = useState('');
-  const [reference, setReference]   = useState('');
-  const [showScanner, setShowScanner]   = useState(false);
-  const [showManual, setShowManual]     = useState(false);
-  const [isConfirming, setIsConfirming] = useState(false);
+  const [cart, setCart]                     = useState<CartItem[]>([]);
+  const [supplierId, setSupplierId]         = useState('');
+  const [reference, setReference]           = useState('');
+  const [showScanner, setShowScanner]       = useState(false);
+  const [showManual, setShowManual]         = useState(false);
+  const [isConfirming, setIsConfirming]     = useState(false);
   const [pendingBarcode, setPendingBarcode] = useState<string | null>(null);
-  // 'choice' = show two-button sheet, 'form' = show product creation sheet
-  const [unknownSheet, setUnknownSheet] = useState<'choice' | 'form' | null>(null);
-  const initDone = useRef(false);
+  const [showProductForm, setShowProductForm] = useState(false);
 
+  // Detail sheet
+  const [showDetail, setShowDetail]       = useState(false);
+  const [detailProduct, setDetailProduct] = useState<ProductRow | null>(null);
+  const [detailInitial, setDetailInitial] = useState<Partial<CartItem>>({});
+  const [editingIndex, setEditingIndex]   = useState<number | null>(null);
+
+  const initDone = useRef(false);
   const tenantId = activeMembership?.tenant_id;
 
-  // ── Add a line to cart ─────────────────────────────────────────────────────
+  // ── Open detail sheet for a new item ──────────────────────────────────────
+  function openDetail(product: ProductRow, initial: Partial<CartItem> = {}) {
+    setDetailProduct(product);
+    setDetailInitial({ cost_price: product.cost_price, unit: product.unit, ...initial });
+    setEditingIndex(null);
+    setShowDetail(true);
+  }
+
+  // ── Open detail sheet to edit an existing line ────────────────────────────
+  function openDetailEdit(index: number) {
+    const line = cart[index];
+    setDetailProduct(
+      products.find((p) => p.id === line.product_id) ?? {
+        id:         line.product_id,
+        name:       line.product_name,
+        unit:       line.unit,
+        barcode:    null,
+        cost_price: line.cost_price,
+      },
+    );
+    setDetailInitial(line);
+    setEditingIndex(index);
+    setShowDetail(true);
+  }
+
+  // ── Confirm from detail sheet ─────────────────────────────────────────────
+  function handleDetailConfirm(item: CartItem) {
+    if (editingIndex !== null) {
+      updateLine(editingIndex, item);
+    } else {
+      addLine(item);
+    }
+    setShowDetail(false);
+    setDetailProduct(null);
+    setEditingIndex(null);
+  }
+
+  // ── Add a line (merges duplicate product) ─────────────────────────────────
   function addLine(item: CartItem) {
     setCart((prev) => {
       const lastIdx = prev.map((l) => l.product_id).lastIndexOf(item.product_id);
@@ -427,79 +545,93 @@ export function ReceiveCart({ suppliers, categories, products, initialBarcode }:
     });
   }
 
-  // ── Handle initial barcode from URL ────────────────────────────────────────
+  // ── Initial barcode from URL ──────────────────────────────────────────────
   useEffect(() => {
     if (initDone.current || !initialBarcode || !tenantId) return;
     initDone.current = true;
-
     lookupProduct(initialBarcode, tenantId).then((product) => {
       if (product) {
-        addLine({
-          product_id: product.id,
-          product_name: product.name,
-          unit: product.unit as 'pcs' | 'kg',
-          quantity: 1,
-          cost_price: 0,
-          expiry_date: null,
+        openDetail({
+          id:         product.id,
+          name:       product.name,
+          unit:       product.unit as 'pcs' | 'kg',
+          barcode:    initialBarcode,
+          cost_price: (product.cost_price as number) ?? 0,
         });
       } else {
         setPendingBarcode(initialBarcode);
-        setUnknownSheet('choice');
+        setShowProductForm(true);
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialBarcode, tenantId]);
 
-  // ── Scanner callback ───────────────────────────────────────────────────────
-  // Note: overlay calls onClose() BEFORE calling this, so camera is already gone.
+  // ── Scanner callback ──────────────────────────────────────────────────────
   const handleScanned = useCallback(
     (barcode: string) => {
       if (!tenantId) return;
       lookupProduct(barcode, tenantId).then((product) => {
         if (product) {
-          // KNOWN product: add directly to list — no popup
-          addLine({
-            product_id:   product.id,
-            product_name: product.name,
-            unit:         product.unit as 'pcs' | 'kg',
-            quantity:     1,
-            cost_price:   0,
-            expiry_date:  null,
+          setDetailProduct({
+            id:         product.id,
+            name:       product.name,
+            unit:       product.unit as 'pcs' | 'kg',
+            barcode,
+            cost_price: (product.cost_price as number) ?? 0,
           });
+          setDetailInitial({
+            cost_price: (product.cost_price as number) ?? 0,
+            unit:       product.unit as 'pcs' | 'kg',
+          });
+          setEditingIndex(null);
+          setShowDetail(true);
         } else {
-          // UNKNOWN product: show two-option sheet
           setPendingBarcode(barcode);
-          setUnknownSheet('choice');
+          setShowProductForm(true);
         }
       });
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [tenantId],
   );
 
-  // ── After product-form sheet closes ───────────────────────────────────────
+  // ── After ProductForm closes — look up by barcode and open detail sheet ───
   function handleProductFormClose(open: boolean) {
     if (!open) {
-      setUnknownSheet(null);
+      setShowProductForm(false);
       if (pendingBarcode && tenantId) {
-        lookupProduct(pendingBarcode, tenantId).then((p) => {
+        const barcode = pendingBarcode;
+        setPendingBarcode(null);
+        lookupProduct(barcode, tenantId).then((p) => {
           if (p) {
-            addLine({
-              product_id:   p.id,
-              product_name: p.name,
-              unit:         p.unit as 'pcs' | 'kg',
-              quantity:     1,
-              cost_price:   0,
-              expiry_date:  null,
+            openDetail({
+              id:         p.id,
+              name:       p.name,
+              unit:       p.unit as 'pcs' | 'kg',
+              barcode,
+              cost_price: (p.cost_price as number) ?? 0,
             });
           }
-          setPendingBarcode(null);
         });
+      } else {
+        setPendingBarcode(null);
       }
     }
   }
 
-  // ── Line update / remove ───────────────────────────────────────────────────
+  // ── Manual product selected ───────────────────────────────────────────────
+  function handleManualSelect(product: ProductRow) {
+    openDetail(product);
+  }
+
+  // ── "Add new product" from manual search ─────────────────────────────────
+  function handleManualCreate(searchTerm: string) {
+    // Use as barcode prefill only if it looks like a barcode (no spaces)
+    const looksLikeBarcode = searchTerm.length >= 4 && !/\s/.test(searchTerm);
+    setPendingBarcode(looksLikeBarcode ? searchTerm : null);
+    setShowProductForm(true);
+  }
+
+  // ── Line update / remove ──────────────────────────────────────────────────
   function updateLine(index: number, updated: Partial<CartItem>) {
     setCart((prev) => prev.map((l, i) => (i === index ? { ...l, ...updated } : l)));
   }
@@ -508,7 +640,7 @@ export function ReceiveCart({ suppliers, categories, products, initialBarcode }:
     setCart((prev) => prev.filter((_, i) => i !== index));
   }
 
-  // ── Confirm receipt ────────────────────────────────────────────────────────
+  // ── Confirm receipt ───────────────────────────────────────────────────────
   async function handleConfirm() {
     if (!activeBranchId || cart.length === 0) return;
     setIsConfirming(true);
@@ -522,6 +654,7 @@ export function ReceiveCart({ suppliers, categories, products, initialBarcode }:
           quantity:    l.quantity,
           cost_price:  l.cost_price,
           expiry_date: l.expiry_date || null,
+          lot_number:  l.lot_number || null,
         })),
       });
 
@@ -546,7 +679,7 @@ export function ReceiveCart({ suppliers, categories, products, initialBarcode }:
 
   const totalCost = cart.reduce((s, l) => s + l.quantity * l.cost_price, 0);
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
       {/* Sticky action bar */}
@@ -602,7 +735,7 @@ export function ReceiveCart({ suppliers, categories, products, initialBarcode }:
               >
                 <ReceiveLine
                   line={line}
-                  onChange={(upd) => updateLine(index, upd)}
+                  onEdit={() => openDetailEdit(index)}
                   onRemove={() => removeLine(index)}
                 />
               </motion.div>
@@ -619,7 +752,7 @@ export function ReceiveCart({ suppliers, categories, products, initialBarcode }:
         </div>
       )}
 
-      {/* ✓ Confirm Receiving — always at bottom */}
+      {/* Confirm button */}
       <div className="pb-6">
         <Button
           className="h-12 w-full rounded-xl text-sm font-semibold"
@@ -637,7 +770,7 @@ export function ReceiveCart({ suppliers, categories, products, initialBarcode }:
         </Button>
       </div>
 
-      {/* Scanner overlay — closes itself before calling onScanned */}
+      {/* Scanner overlay */}
       {showScanner && (
         <ReceiveScannerOverlay
           onClose={() => setShowScanner(false)}
@@ -650,23 +783,23 @@ export function ReceiveCart({ suppliers, categories, products, initialBarcode }:
         open={showManual}
         onOpenChange={setShowManual}
         products={products}
-        onAdd={addLine}
+        onSelect={handleManualSelect}
+        onCreateProduct={handleManualCreate}
       />
 
-      {/* Unknown barcode — step 1: two options */}
-      <UnknownBarcodeSheet
-        open={unknownSheet === 'choice'}
-        barcode={pendingBarcode ?? ''}
-        onAddProduct={() => setUnknownSheet('form')}
-        onCancel={() => {
-          setUnknownSheet(null);
-          setPendingBarcode(null);
-        }}
+      {/* Item detail sheet */}
+      <ItemDetailSheet
+        open={showDetail}
+        onOpenChange={setShowDetail}
+        product={detailProduct}
+        initial={detailInitial}
+        isEditing={editingIndex !== null}
+        onConfirm={handleDetailConfirm}
       />
 
-      {/* Unknown barcode — step 2: create product as bottom sheet */}
+      {/* Product creation form */}
       <ProductForm
-        open={unknownSheet === 'form'}
+        open={showProductForm}
         onOpenChange={handleProductFormClose}
         categories={categories}
         prefillBarcode={pendingBarcode ?? undefined}
