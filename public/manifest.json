@@ -1,0 +1,26 @@
+{
+  "name": "AURAN — يرى ما لا ترى",
+  "short_name": "AURAN",
+  "description": "نظام ذكي لإدارة الملاحم والسوبر ماركت — تواريخ الانتهاء، الجرد، واستلام البضاعة",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0a0a0b",
+  "theme_color": "#0a0a0b",
+  "lang": "ar",
+  "dir": "rtl",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "مسح باركود", "short_name": "مسح", "url": "/scan", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "استلام بضاعة", "short_name": "استلام", "url": "/receiving", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "جلسة جرد", "short_name": "جرد", "url": "/count", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
+  ],
+  "prefer_related_applications": false
+}

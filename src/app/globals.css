@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 30% 98%; --foreground: 24 10% 10%;
+    --card: 40 30% 99%; --card-foreground: 24 10% 10%;
+    --primary: 41 68% 48%; --primary-foreground: 40 30% 98%;
+    --secondary: 40 12% 92%; --secondary-foreground: 24 10% 12%;
+    --muted: 40 12% 92%; --muted-foreground: 24 6% 42%;
+    --accent: 40 30% 94%; --accent-foreground: 24 10% 12%;
+    --destructive: 0 72% 48%; --destructive-foreground: 40 30% 98%;
+    --border: 40 12% 86%; --input: 40 12% 86%; --ring: 41 68% 48%;
+    --radius: 0.9rem;
+  }
+  .dark {
+    --background: 240 6% 4%; --foreground: 40 20% 96%;
+    --card: 240 6% 7%; --card-foreground: 40 20% 96%;
+    --primary: 41 72% 56%; --primary-foreground: 240 10% 6%;
+    --secondary: 240 5% 12%; --secondary-foreground: 40 20% 96%;
+    --muted: 240 5% 12%; --muted-foreground: 40 8% 62%;
+    --accent: 240 5% 14%; --accent-foreground: 40 20% 96%;
+    --destructive: 0 64% 52%; --destructive-foreground: 40 20% 96%;
+    --border: 240 5% 16%; --input: 240 5% 16%; --ring: 41 72% 56%;
+  }
+  html, body {
+    overflow-x: hidden;
+    touch-action: pan-y;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground antialiased; -webkit-tap-highlight-color: transparent; font-variant-numeric: lining-nums tabular-nums; }
+  html[lang='ar'] body { @apply font-ar; }
+  html[lang='en'] body { @apply font-en; }
+}
+
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+
+/* ── html5-qrcode host normalisation ── */
+.qr-reader-host,
+.qr-reader-host > div {
+  height: 100% !important;
+  width:  100% !important;
+  padding: 0   !important;
+  border:  none !important;
+  background: transparent !important;
+}
+.qr-reader-host video {
+  height: 100% !important;
+  width:  100% !important;
+  object-fit: cover !important;
+  border: none !important;
+}
+/* Hide default html5-qrcode UI chrome */
+#qr-reader-element__scan_region img,
+#qr-reader-element__dashboard,
+#qr-reader-element__header_message { display: none !important; }
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 9999px; }
+
+/* Bottom-nav safe-area-aware padding for main content (mobile only) */
+.pb-safe-nav {
+  padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 768px) {
+  .pb-safe-nav { padding-bottom: 0; }
+}
