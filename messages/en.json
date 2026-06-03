@@ -563,6 +563,10 @@
     "noBranch": "Please select a branch first",
     "expiredWarning": "{n} products need to be recorded as damaged immediately"
   },
+  "Splash": {
+    "loading": "Loading...",
+    "tagline": "INVENTORY MANAGEMENT"
+  },
   "BarcodeGenerator": {
     "pageTitle": "Barcode Generator",
     "pageSubtitle": "Create and print barcode labels for your products",

@@ -6,6 +6,7 @@ import { Tajawal, Inter } from 'next/font/google';
 import { Toaster } from 'sonner';
 import { routing } from '@/i18n/routing';
 import { ThemeProvider } from '@/components/theme-provider';
+import { SplashScreen } from '@/components/splash-screen';
 import '../globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
@@ -41,6 +42,7 @@ export default async function LocaleLayout({ children, params }: { children: Rea
       <body>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
           <NextIntlClientProvider messages={messages}>
+            <SplashScreen />
             {children}
             <Toaster richColors position="top-center" dir={dir} />
           </NextIntlClientProvider>
