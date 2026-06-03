@@ -20,11 +20,11 @@ type Props = {
   children: ReactNode;
 };
 
-function ShellInner({ user, memberships, children }: Props) {
+function ShellInner({ memberships, children }: Props) {
   const pathname = usePathname();
   const reduced  = useReducedMotion();
   const role: UserRole = (memberships[0]?.role ?? 'staff') as UserRole;
-  const { activeBranchId, activeMembership } = useActiveBranch();
+  const { activeBranchId } = useActiveBranch();
 
   useSessionTimeout();
 
@@ -55,12 +55,7 @@ function ShellInner({ user, memberships, children }: Props) {
 
   return (
     <div className="flex h-[100dvh] flex-col">
-      <TopBar
-        name={user.name}
-        userId={user.id}
-        tenantId={activeMembership?.tenant_id ?? ''}
-        branchId={activeBranchId}
-      />
+      <TopBar />
       <OfflineBanner />
       <ExpiryAlert branchId={activeBranchId} />
       <div className="flex flex-1 overflow-hidden">

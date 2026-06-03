@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import { usePathname, Link } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
-import { motion, useReducedMotion } from 'framer-motion';
 import { MoreHorizontal } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
@@ -12,10 +11,9 @@ import type { UserRole } from '@/types/db';
 type Props = { role: UserRole };
 
 export function BottomNav({ role }: Props) {
-  const t       = useTranslations('Nav');
+  const t        = useTranslations('Nav');
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
-  const reduced  = useReducedMotion();
 
   const primary   = navItems.filter((n) => bottomPrimaryKeys.includes(n.key));
   const secondary = navItems.filter(
@@ -24,40 +22,29 @@ export function BottomNav({ role }: Props) {
 
   return (
     <>
-      {/*
-        md:hidden  → hidden on tablet & desktop (sidebar takes over)
-        Height accounts for iOS safe-area so the home-indicator isn't covered.
-        Items are centered in the top 4rem; safe-area is additional padding below.
-      */}
       <nav
-        className="fixed bottom-0 inset-x-0 z-40 flex items-stretch border-t border-border/50 bg-background/95 backdrop-blur-md md:hidden"
+        className="fixed bottom-0 inset-x-0 z-40 flex items-stretch border-t border-border/40 bg-[#fafaf8] dark:bg-[#0d0d0d] transition-colors duration-200 md:hidden"
         style={{
-          height: 'calc(4rem + env(safe-area-inset-bottom, 0px))',
+          height: 'calc(64px + env(safe-area-inset-bottom, 0px))',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-          willChange: 'transform',   /* GPU layer → no iOS Safari jitter */
+          willChange: 'transform',
         }}
       >
-        {/* ── 5 primary items ──────────────────────────────── */}
         {primary.map((item) => {
           const Icon = item.icon;
           const isActive =
             pathname === item.href ||
             (item.href !== '/dashboard' && pathname.startsWith(item.href));
 
-          /* FAB — scan button (golden, floats above nav) */
+          /* Center FAB — SCAN */
           if (item.isFab) {
             return (
               <div key={item.key} className="flex flex-1 items-center justify-center">
                 <Link
                   href={item.href as string}
-                  className={cn(
-                    'relative -top-5 flex h-14 w-14 items-center justify-center rounded-full',
-                    'bg-primary shadow-lg shadow-primary/40',
-                    'ring-4 ring-background',          /* white ring separates from nav */
-                    'transition-transform active:scale-95',
-                  )}
+                  className="relative -top-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#EF9F27] ring-[3px] ring-[#fafaf8] dark:ring-[#0d0d0d] shadow-lg shadow-[#EF9F27]/30 transition-transform duration-200 active:scale-95"
                 >
-                  <Icon className="h-6 w-6 text-primary-foreground" />
+                  <Icon className="h-5 w-5 text-white" />
                 </Link>
               </div>
             );
@@ -67,35 +54,49 @@ export function BottomNav({ role }: Props) {
             <Link
               key={item.key}
               href={item.href as string}
-              className={cn(
-                'flex flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium transition-colors',
-                isActive ? 'text-primary' : 'text-muted-foreground',
-              )}
+              className="flex flex-1 flex-col items-center justify-center gap-1 transition-colors duration-200"
             >
-              <motion.div
-                animate={isActive && !reduced ? { scale: 1.15 } : { scale: 1 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+              <div
+                className={cn(
+                  'flex h-8 w-8 items-center justify-center rounded-lg transition-colors duration-200',
+                  isActive
+                    ? 'bg-[#EF9F27]/[0.12] border border-[#EF9F27]/30 text-[#EF9F27]'
+                    : 'bg-black/[0.04] dark:bg-white/[0.05] text-foreground/50 dark:text-white/40',
+                )}
               >
-                <Icon className="h-5 w-5" />
-              </motion.div>
-              <span className="leading-none">{t(item.key as Parameters<typeof t>[0])}</span>
+                <Icon className="h-4 w-4" />
+              </div>
+              <span
+                className={cn(
+                  'text-[10px] leading-none transition-colors duration-200',
+                  isActive
+                    ? 'font-bold text-[#EF9F27]'
+                    : 'font-medium text-foreground/50 dark:text-white/40',
+                )}
+              >
+                {t(item.key as Parameters<typeof t>[0])}
+              </span>
             </Link>
           );
         })}
 
-        {/* ── More button → secondary sheet ────────────────── */}
+        {/* More button */}
         {secondary.length > 0 && (
           <button
             onClick={() => setMoreOpen(true)}
-            className="flex flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className="flex flex-1 flex-col items-center justify-center gap-1 transition-colors duration-200"
           >
-            <MoreHorizontal className="h-5 w-5" />
-            <span className="leading-none">{t('more')}</span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-black/[0.04] dark:bg-white/[0.05] text-foreground/50 dark:text-white/40">
+              <MoreHorizontal className="h-4 w-4" />
+            </div>
+            <span className="text-[10px] font-medium leading-none text-foreground/50 dark:text-white/40">
+              {t('more')}
+            </span>
           </button>
         )}
       </nav>
 
-      {/* ── Secondary items sheet ─────────────────────────── */}
+      {/* Secondary items sheet */}
       <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
         <SheetContent side="bottom" className="rounded-t-2xl">
           <SheetHeader className="sr-only">
@@ -113,7 +114,7 @@ export function BottomNav({ role }: Props) {
                   className={cn(
                     'flex flex-col items-center gap-2 rounded-xl p-3 text-sm font-medium transition-colors',
                     isActive
-                      ? 'bg-primary/10 text-primary'
+                      ? 'bg-[#EF9F27]/[0.12] text-[#EF9F27]'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                   )}
                 >

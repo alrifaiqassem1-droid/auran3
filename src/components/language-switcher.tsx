@@ -12,7 +12,7 @@ export function LanguageSwitcher() {
   return (
     <button
       onClick={() => router.replace(pathname, { locale: target })}
-      className="flex h-7 items-center gap-1 rounded-lg bg-black/5 dark:bg-white/8 px-2 text-[11px] font-semibold text-foreground/50 dark:text-white/50 hover:bg-black/8 dark:hover:bg-white/12 transition-colors duration-200"
+      className="flex h-7 items-center gap-1 rounded-lg bg-black/5 dark:bg-white/[0.08] px-2 text-[11px] font-semibold text-foreground/60 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/[0.12] transition-colors duration-200"
       aria-label={`Switch to ${target.toUpperCase()}`}
     >
       <Globe className="h-3 w-3" />
