@@ -17,6 +17,14 @@ export function SplashScreen() {
     }
   }, []);
 
+  // Safety net: force-dismiss after 4 s if onAnimationEnd never fires
+  // (e.g. prefers-reduced-motion disables the CSS animation)
+  useEffect(() => {
+    if (!visible) return;
+    const id = setTimeout(() => setFading(true), 4000);
+    return () => clearTimeout(id);
+  }, [visible]);
+
   if (!visible) return null;
 
   return (
@@ -26,8 +34,8 @@ export function SplashScreen() {
       className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black select-none"
       style={{
         opacity: fading ? 0 : 1,
-        transition: fading ? 'opacity 0.4s ease' : undefined,
-        pointerEvents: fading ? 'none' : undefined,
+        transition: 'opacity 0.4s ease',
+        pointerEvents: 'none',
       }}
       onTransitionEnd={() => { if (fading) setVisible(false); }}
     >
