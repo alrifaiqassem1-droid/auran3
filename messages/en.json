@@ -109,7 +109,12 @@
     "countConfirmed": "Count recorded",
     "expectedQty": "Expected",
     "countedQty": "Counted",
-    "difference": "Difference"
+    "difference": "Difference",
+    "searching": "Searching...",
+    "scanActive": "Scanning",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "flash": "Flash"
   },
   "Stocktake": {
     "pageTitle": "Stocktake",

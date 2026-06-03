@@ -109,7 +109,12 @@
     "countConfirmed": "تم تسجيل العدّ",
     "expectedQty": "المتوقّع",
     "countedQty": "المعدود",
-    "difference": "الفرق"
+    "difference": "الفرق",
+    "searching": "جاري البحث...",
+    "scanActive": "المسح نشط",
+    "zoomIn": "تكبير",
+    "zoomOut": "تصغير",
+    "flash": "الفلاش"
   },
   "Stocktake": {
     "pageTitle": "الجرد",

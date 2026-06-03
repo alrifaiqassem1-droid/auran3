@@ -612,7 +612,6 @@ export function ReceiveCart({ suppliers, categories, products, initialBarcode }:
           onScanned={handleScanned}
           onProductSelect={handleScannerProductSelect}
           onClose={() => setShowScanner(false)}
-          onNewProduct={() => { setShowScanner(false); setPendingBarcode(null); setShowProductForm(true); }}
         />
       )}
 
