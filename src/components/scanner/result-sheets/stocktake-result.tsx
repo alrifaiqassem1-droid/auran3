@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Package, ClipboardList, Loader2 } from 'lucide-react';
+import { Package, ClipboardList, Loader2, Minus, Plus } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +22,7 @@ type Props = {
   product: Product | null;
 };
 
-// Round to 3 decimal places, strip trailing zeros
+// Strip unnecessary trailing zeros from float display
 function fmtQty(n: number): string {
   return parseFloat(n.toFixed(3)).toString();
 }
@@ -37,11 +37,16 @@ export function StocktakeResultSheet({ open, onClose, barcode, product }: Props)
   const [countedQty,   setCountedQty]   = useState(0);
   const [submitting,   setSubmitting]   = useState(false);
 
-  // Fetch expected stock from DB when sheet opens
+  // ── Fetch expected stock from DB when sheet opens ─────────────────────────
   useEffect(() => {
-    if (!open || !product) { setExpectedQty(null); return; }
-    if (!tenantId || !activeBranchId) { setExpectedQty(0); return; }
-
+    if (!open || !product) {
+      setExpectedQty(null);
+      return;
+    }
+    if (!tenantId || !activeBranchId) {
+      setExpectedQty(0);
+      return;
+    }
     setLoadingStock(true);
     createClient()
       .from('stock_batches')
@@ -56,15 +61,25 @@ export function StocktakeResultSheet({ open, onClose, barcode, product }: Props)
       });
   }, [open, product?.id, tenantId, activeBranchId]);
 
-  // Reset count input on every open
+  // ── Reset counter on every open ───────────────────────────────────────────
   useEffect(() => {
     if (open) setCountedQty(0);
   }, [open]);
 
-  // Live difference (rounded for kg products)
+  const isKg = product?.unit === 'kg';
+  const step = isKg ? 0.1 : 1;
+
+  // Live difference — float-safe
   const diff = expectedQty !== null
     ? parseFloat((countedQty - expectedQty).toFixed(3))
     : null;
+
+  function decrement() {
+    setCountedQty((q) => parseFloat(Math.max(0, q - step).toFixed(3)));
+  }
+  function increment() {
+    setCountedQty((q) => parseFloat((q + step).toFixed(3)));
+  }
 
   async function handleSubmit() {
     if (!product || !activeBranchId) return;
@@ -89,10 +104,11 @@ export function StocktakeResultSheet({ open, onClose, barcode, product }: Props)
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent side="bottom" className="max-h-[75dvh] overflow-y-auto rounded-t-[20px] pb-safe">
+      <SheetContent side="bottom" className="max-h-[80dvh] overflow-y-auto rounded-t-[20px] pb-safe">
+
         {product ? (
           <>
-            {/* Header */}
+            {/* ── Product header ─────────────────────────────────────────── */}
             <SheetHeader className="pb-3">
               <div className="flex items-start gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-500/10">
@@ -114,38 +130,47 @@ export function StocktakeResultSheet({ open, onClose, barcode, product }: Props)
               </div>
             </SheetHeader>
 
-            <Separator className="mb-4" />
+            <Separator className="mb-5" />
 
-            <div className="space-y-4 pb-4">
-              {/* Expected / Counted / Diff summary grid */}
-              <div className="grid grid-cols-3 gap-3 rounded-xl bg-muted/50 p-3">
-                <div className="text-center">
-                  <p className="text-[10px] text-muted-foreground mb-1">{t('expectedQty')}</p>
+            <div className="space-y-5 pb-4">
+              {/* ── Expected / Counted / Diff summary ────────────────────── */}
+              <div className="grid grid-cols-3 gap-3 rounded-xl bg-muted/50 p-3 text-center">
+                {/* Expected */}
+                <div>
+                  <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    {t('expectedQty')}
+                  </p>
                   {loadingStock ? (
-                    <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground/40" />
+                    <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground/40" />
                   ) : (
-                    <p className="text-lg font-bold tabular-nums">
+                    <p className="text-xl font-bold tabular-nums">
                       {expectedQty !== null ? fmtQty(expectedQty) : '—'}
                     </p>
                   )}
                 </div>
-                <div className="text-center">
-                  <p className="text-[10px] text-muted-foreground mb-1">{t('countedQty')}</p>
-                  <p className="text-lg font-bold tabular-nums text-blue-500">
+
+                {/* Counted */}
+                <div>
+                  <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    {t('countedQty')}
+                  </p>
+                  <p className="text-xl font-bold tabular-nums text-blue-500">
                     {fmtQty(countedQty)}
                   </p>
                 </div>
-                <div className="text-center">
-                  <p className="text-[10px] text-muted-foreground mb-1">{t('difference')}</p>
-                  <p
-                    className={cn(
-                      'text-lg font-bold tabular-nums',
-                      diff === null  ? 'text-muted-foreground' :
-                      diff  >  0     ? 'text-emerald-500'      :
-                      diff  <  0     ? 'text-red-500'          :
-                                       'text-muted-foreground',
-                    )}
-                  >
+
+                {/* Difference — green if surplus, red if shortage, gray if exact */}
+                <div>
+                  <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    {t('difference')}
+                  </p>
+                  <p className={cn(
+                    'text-xl font-bold tabular-nums',
+                    diff === null ? 'text-muted-foreground' :
+                    diff  >  0   ? 'text-emerald-500'      :
+                    diff  <  0   ? 'text-red-500'          :
+                                   'text-muted-foreground',
+                  )}>
                     {diff !== null
                       ? (diff > 0 ? `+${fmtQty(diff)}` : fmtQty(diff))
                       : '—'}
@@ -153,29 +178,51 @@ export function StocktakeResultSheet({ open, onClose, barcode, product }: Props)
                 </div>
               </div>
 
-              {/* Counted qty input */}
+              {/* ── Actual qty stepper ────────────────────────────────────── */}
               <div>
-                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {t('countedQty')}
                 </p>
-                <Input
-                  type="number"
-                  inputMode={product.unit === 'kg' ? 'decimal' : 'numeric'}
-                  step={product.unit === 'kg' ? '0.001' : '1'}
-                  min="0"
-                  value={countedQty}
-                  autoFocus
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => {
-                    const v = product.unit === 'kg'
-                      ? parseFloat(e.target.value)
-                      : parseInt(e.target.value, 10) || 0;
-                    if (!isNaN(v) && v >= 0) setCountedQty(v);
-                  }}
-                  className="h-11 text-center text-base font-bold tabular-nums"
-                />
+                <div className="flex items-center gap-2">
+                  {/* Decrement */}
+                  <button
+                    onClick={decrement}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-muted/40 active:scale-95 transition-transform"
+                    aria-label="Decrease"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+
+                  {/* Direct input */}
+                  <Input
+                    type="number"
+                    inputMode={isKg ? 'decimal' : 'numeric'}
+                    step={step}
+                    min={0}
+                    value={countedQty}
+                    autoFocus
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      const v = isKg
+                        ? parseFloat(e.target.value)
+                        : parseInt(e.target.value, 10) || 0;
+                      if (!isNaN(v) && v >= 0) setCountedQty(v);
+                    }}
+                    className="h-11 flex-1 text-center text-base font-bold tabular-nums"
+                  />
+
+                  {/* Increment */}
+                  <button
+                    onClick={increment}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-muted/40 active:scale-95 transition-transform"
+                    aria-label="Increase"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
 
+              {/* ── Confirm button ─────────────────────────────────────────── */}
               <Button
                 className="h-12 w-full rounded-xl bg-blue-600 text-sm font-semibold hover:bg-blue-700"
                 onClick={handleSubmit}
@@ -191,9 +238,9 @@ export function StocktakeResultSheet({ open, onClose, barcode, product }: Props)
             </div>
           </>
         ) : (
-          /* Product not found */
+          /* ── Product not found ─────────────────────────────────────────── */
           <div className="py-8 text-center">
-            <Package className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
+            <Package className="mx-auto mb-3 h-10 w-10 text-muted-foreground/30" />
             <p className="text-sm font-medium text-muted-foreground">{t('productNotFound')}</p>
             {barcode && (
               <p className="mt-1 font-mono text-xs text-muted-foreground/60">{barcode}</p>
@@ -203,6 +250,7 @@ export function StocktakeResultSheet({ open, onClose, barcode, product }: Props)
             </Button>
           </div>
         )}
+
       </SheetContent>
     </Sheet>
   );
