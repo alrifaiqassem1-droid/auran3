@@ -93,6 +93,8 @@ export function ScannerLayout({
 
   // Timer ref for 3-second auto-restart after successful scan
   const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Ref to the camera host div — used to guard start() and for torch access
+  const readerRef = useRef<HTMLDivElement | null>(null);
 
   const tenantId = activeMembership?.tenant_id;
   const cfg      = MODE_CONFIG[mode];
@@ -150,9 +152,12 @@ export function ScannerLayout({
 
   const scanner = useBarcodeScanner({ elementId: READER_ID, onScan: handleScan });
 
-  // ── Always-on camera: start in continuous mode on mount ──────────────────
+  // ── Always-on camera: wait one paint frame so the DOM element exists ─────
   useEffect(() => {
-    scanner.setMode('continuous');
+    const raf = requestAnimationFrame(() => {
+      if (readerRef.current) scanner.setMode('continuous');
+    });
+    return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -161,8 +166,7 @@ export function ScannerLayout({
     const next = !flashLight;
     setFlashLight(next);
     try {
-      const el    = document.getElementById(READER_ID);
-      const video = el?.querySelector('video') as HTMLVideoElement | null;
+      const video = readerRef.current?.querySelector('video') as HTMLVideoElement | null;
       const track = (video?.srcObject as MediaStream | null)?.getVideoTracks()[0];
       await track?.applyConstraints({ advanced: [{ torch: next } as MediaTrackConstraintSet] });
     } catch { /* torch not supported */ }
@@ -185,37 +189,9 @@ export function ScannerLayout({
     setIsActive((prev) => !prev);
   }
 
-  // ── Denied / Error ────────────────────────────────────────────────────────
-  // z-40 keeps scanner below result sheets (shadcn Sheet = z-50)
-  if (scanner.status === 'denied' || scanner.status === 'error') {
-    return (
-      <div
-        className="fixed inset-x-0 top-0 z-40 flex flex-col items-center justify-center gap-6 bg-[#0a0a0a] p-6 text-center"
-        style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' }}
-      >
-        <button onClick={onClose} className="absolute end-4 top-4 text-white/60">
-          <X className="h-6 w-6" />
-        </button>
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/10">
-          <RotateCcw className="h-8 w-8 text-white" />
-        </div>
-        <div>
-          <p className="text-lg font-bold text-white">{t('permissionDenied')}</p>
-          <p className="mt-2 text-sm text-white/60">{t('permissionDeniedDesc')}</p>
-        </div>
-        <button
-          onClick={() => scanner.start()}
-          className="flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground"
-        >
-          <RotateCcw className="h-4 w-4" />
-          {t('retry')}
-        </button>
-      </div>
-    );
-  }
-
   // ── Main render ───────────────────────────────────────────────────────────
   // z-40: result sheets (z-50) appear on top when open
+  // The camera div is ALWAYS rendered so retry/torch can find the element.
   return (
     <div
       className="fixed inset-x-0 top-0 z-40 flex flex-col bg-[#0a0a0a]"
@@ -242,13 +218,32 @@ export function ScannerLayout({
         </button>
       </div>
 
-      {/* Camera */}
+      {/* Camera — div is always in DOM so start()/retry() can find the element */}
       <div className="relative shrink-0 bg-black" style={{ height: '55dvh', minHeight: 220 }}>
-        <div id={READER_ID} className="absolute inset-0 qr-reader-host" />
+        <div ref={readerRef} id={READER_ID} className="absolute inset-0 qr-reader-host" />
         <ScanOverlay flash={flash} />
         {scanner.status === 'starting' && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/60">
             <Loader2 className="h-10 w-10 animate-spin" style={{ color: cfg.color }} />
+          </div>
+        )}
+        {/* Denied / error overlay — rendered over the camera div so the div stays mounted */}
+        {(scanner.status === 'denied' || scanner.status === 'error') && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-[#0a0a0a] p-6 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/10">
+              <RotateCcw className="h-7 w-7 text-white" />
+            </div>
+            <div>
+              <p className="text-base font-bold text-white">{t('permissionDenied')}</p>
+              <p className="mt-1 text-xs text-white/50">{t('permissionDeniedDesc')}</p>
+            </div>
+            <button
+              onClick={() => { setIsActive(true); scanner.start(); }}
+              className="flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
+            >
+              <RotateCcw className="h-4 w-4" />
+              {t('retry')}
+            </button>
           </div>
         )}
         {/* Right-side controls */}
