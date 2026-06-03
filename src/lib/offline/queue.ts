@@ -13,6 +13,7 @@ import { getDB, type OpType, type QueuedJob } from './db';
 import { createClient } from '@/lib/supabase/client';
 
 const MAX_ATTEMPTS = 6;
+const MAX_QUEUE_SIZE = 200;
 
 /** uuid v4 يعمل في المتصفح (يفضّل crypto.randomUUID المدعوم حديثاً). */
 export function newOpId(): string {
@@ -62,6 +63,11 @@ export async function enqueueAndRun(
   const fullPayload = { ...payload, client_op_id: id };
   const db = await getDB();
   const now = Date.now();
+
+  const queuedCount = (await db.getAllFromIndex('jobs', 'by-status', 'pending')).length;
+  if (queuedCount >= MAX_QUEUE_SIZE) {
+    return { ok: false, queued: false, error: 'AURAN_QUEUE_FULL: offline queue limit reached' };
+  }
 
   const job: QueuedJob = {
     id, type, payload: fullPayload, status: 'pending',

@@ -100,7 +100,7 @@ export function useBarcodeScanner({ elementId, onScan }: Options) {
         setStatus('denied');
       } else {
         setStatus('error');
-        console.error('[scanner]', err);
+        if (process.env.NODE_ENV !== 'production') console.error('[scanner]', err);
       }
       try { scannerRef.current?.clear?.(); } catch { }
       scannerRef.current = null;

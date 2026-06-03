@@ -48,11 +48,15 @@ export async function getVatReport(
   to: string,
 ): Promise<VatReport> {
   const supabase = await createServerClient();
+  const { data: tenantIds } = await supabase.rpc('auth_tenant_ids');
+  const tenantId: string | undefined = tenantIds?.[0];
+  if (!tenantId) return { lines: [], totals: { gross: 0, net: 0, vat: 0, transactions: 0 }, period: { from, to } };
 
   const { data: items } = await supabase
     .from('pos_import_items')
     .select('quantity, total, sold_at, pos_imports!inner(branch_id, created_at)')
     .eq('pos_imports.branch_id', branchId)
+    .eq('pos_imports.tenant_id', tenantId)
     .gte('pos_imports.created_at', from)
     .lte('pos_imports.created_at', to)
     .not('total', 'eq', 0);
@@ -114,6 +118,9 @@ export interface DamageReport {
 
 export async function getDamageReport(branchId: string, monthsBack = 6): Promise<DamageReport> {
   const supabase = await createServerClient();
+  const { data: tenantIds } = await supabase.rpc('auth_tenant_ids');
+  const tenantId: string | undefined = tenantIds?.[0];
+  if (!tenantId) return { months: [], total_loss: 0, total_qty: 0 };
 
   const from = new Date();
   from.setMonth(from.getMonth() - monthsBack + 1);
@@ -124,6 +131,7 @@ export async function getDamageReport(branchId: string, monthsBack = 6): Promise
     .from('damaged_products')
     .select('quantity, created_at, stock_batches(cost_price)')
     .eq('branch_id', branchId)
+    .eq('tenant_id', tenantId)
     .gte('created_at', from.toISOString())
     .order('created_at');
 
@@ -183,11 +191,15 @@ export interface ExpiryData {
 
 export async function getExpiryData(branchId: string): Promise<ExpiryData> {
   const supabase = await createServerClient();
+  const { data: tenantIds } = await supabase.rpc('auth_tenant_ids');
+  const tenantId: string | undefined = tenantIds?.[0];
+  if (!tenantId) return { expired: [], critical: [], warning: [], safe: [] };
 
   const { data } = await supabase
     .from('stock_batches')
     .select('id, product_id, quantity, expiry_date, products(name, unit)')
     .eq('branch_id', branchId)
+    .eq('tenant_id', tenantId)
     .gt('quantity', 0)
     .order('expiry_date', { ascending: true, nullsFirst: false });
 

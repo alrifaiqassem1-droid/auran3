@@ -73,11 +73,15 @@ export async function getCountSessionDetails(
   countId: string,
 ): Promise<CountSessionDetail | null> {
   const supabase = await createServerClient();
+  const { data: tenantIds } = await supabase.rpc('auth_tenant_ids');
+  const tenantId: string | undefined = tenantIds?.[0];
+  if (!tenantId) return null;
 
   const { data: session } = await supabase
     .from('inventory_counts')
     .select('id, status, created_at, closed_at, branch_id')
     .eq('id', countId)
+    .eq('tenant_id', tenantId)
     .single();
   if (!session) return null;
 

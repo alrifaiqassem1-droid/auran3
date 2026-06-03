@@ -10,8 +10,10 @@ export default function DashboardError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error('[AURAN] dashboard error:', error.message);
-    console.error('[AURAN] stack:', error.stack);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[AURAN] dashboard error:', error.message);
+      console.error('[AURAN] stack:', error.stack);
+    }
   }, [error]);
 
   return (

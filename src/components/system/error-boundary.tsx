@@ -18,9 +18,11 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error('[AURAN] client error:', error.message);
-    console.error('[AURAN] stack:', error.stack);
-    console.error('[AURAN] component stack:', info.componentStack?.slice(0, 600));
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[AURAN] client error:', error.message);
+      console.error('[AURAN] stack:', error.stack);
+      console.error('[AURAN] component stack:', info.componentStack?.slice(0, 600));
+    }
   }
 
   render() {
