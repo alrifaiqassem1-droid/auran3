@@ -1,5 +1,5 @@
-import { BentoSkeletonContent } from '@/components/dashboard/bento-skeleton';
+import { BentoSkeleton } from '@/components/dashboard/bento-skeleton';
 
 export default function DashboardLoading() {
-  return <BentoSkeletonContent />;
+  return <BentoSkeleton />;
 }

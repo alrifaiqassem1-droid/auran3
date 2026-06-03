@@ -563,10 +563,6 @@
     "noBranch": "يرجى اختيار فرع أولاً",
     "expiredWarning": "{n} منتجات بحاجة إلى تسجيل تالف فوراً"
   },
-  "Splash": {
-    "loading": "جاري التحميل...",
-    "tagline": "إدارة المخزون"
-  },
   "BarcodeGenerator": {
     "pageTitle": "مولّد الباركود",
     "pageSubtitle": "أنشئ وطبع بطاقات الباركود للمنتجات",

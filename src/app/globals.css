@@ -68,60 +68,8 @@
   .pb-safe-nav { padding-bottom: 0; }
 }
 
-/* ══════════════════════════════════════════════════
-   Skeleton shimmer
-═══════════════════════════════════════════════════ */
+/* ── Bento skeleton shimmer ── */
 @keyframes shimmer {
   0%   { transform: translateX(-100%); }
   100% { transform: translateX(200%); }
-}
-
-/* Explicit dark / light variants */
-.shimmer,
-.shimmer-light {
-  position: relative;
-  overflow: hidden;
-  border-radius: 12px;
-}
-.shimmer       { background: #161617; }
-.shimmer-light { background: #f0eeea; }
-.shimmer::after,
-.shimmer-light::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  animation: shimmer 1.8s ease-in-out infinite;
-}
-.shimmer::after       { background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent); }
-.shimmer-light::after { background: linear-gradient(90deg, transparent, rgba(0,0,0,0.04), transparent); }
-
-/* Auto-switch variant — follows .dark on <html> */
-.shimmer-auto {
-  position: relative;
-  overflow: hidden;
-  border-radius: 12px;
-  background: #f0eeea;
-}
-.dark .shimmer-auto { background: #161617; }
-.shimmer-auto::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(0,0,0,0.04), transparent);
-  animation: shimmer 1.8s ease-in-out infinite;
-}
-.dark .shimmer-auto::after {
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
-}
-
-/* ══════════════════════════════════════════════════
-   Splash screen animations
-═══════════════════════════════════════════════════ */
-@keyframes pulse-ring {
-  0%, 100% { transform: scale(1);    opacity: 1;   }
-  50%       { transform: scale(1.1); opacity: 0.5; }
-}
-@keyframes splash-progress {
-  from { width: 0%;   }
-  to   { width: 100%; }
 }
