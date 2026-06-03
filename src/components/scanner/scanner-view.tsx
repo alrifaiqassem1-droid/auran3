@@ -206,8 +206,6 @@ export function ScannerView({ onClose }: Props) {
         onClose={() => setResult(null)}
         barcode={result?.barcode ?? ''}
         product={result?.product ?? null}
-        categories={[]}
-        onAddProduct={() => {}}
       />
     </>
   );
