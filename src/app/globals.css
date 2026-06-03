@@ -67,3 +67,9 @@
 @media (min-width: 768px) {
   .pb-safe-nav { padding-bottom: 0; }
 }
+
+/* ── Bento skeleton shimmer ── */
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}

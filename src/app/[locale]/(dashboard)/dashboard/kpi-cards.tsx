@@ -11,11 +11,20 @@ function fmt(n: number) {
   return new Intl.NumberFormat('en-US').format(n);
 }
 
+/* Bento order: Row 1 = two small square cards, Row 2 = wide + medium */
 const KPI_STYLES = [
-  { key: 'expiringSoon',  icon: AlertTriangle, colorCls: 'text-amber-500',   bgCls: 'bg-amber-500/10',   href: '/dashboard/expiry'    },
   { key: 'lowStock',      icon: TrendingDown,  colorCls: 'text-rose-500',    bgCls: 'bg-rose-500/10',    href: '/dashboard/products'  },
-  { key: 'todayReceipts', icon: Truck,         colorCls: 'text-emerald-500', bgCls: 'bg-emerald-500/10', href: '/dashboard/receiving' },
+  { key: 'expiringSoon',  icon: AlertTriangle, colorCls: 'text-amber-500',   bgCls: 'bg-amber-500/10',   href: '/dashboard/expiry'    },
   { key: 'monthDamage',   icon: Skull,         colorCls: 'text-orange-500',  bgCls: 'bg-orange-500/10',  href: '/dashboard/damaged'   },
+  { key: 'todayReceipts', icon: Truck,         colorCls: 'text-emerald-500', bgCls: 'bg-emerald-500/10', href: '/dashboard/receiving' },
+] as const;
+
+/* Per-index bento col-span — mirrors BentoSkeletonCards exactly */
+const CARD_GRID = [
+  'col-span-1 aspect-square lg:col-span-2 lg:aspect-auto lg:min-h-[136px]',  // lowStock
+  'col-span-1 aspect-square lg:col-span-2 lg:aspect-auto lg:min-h-[136px]',  // expiringSoon
+  'col-span-2 min-h-[136px] lg:col-span-3',                                   // monthDamage
+  'col-span-2 min-h-[136px] lg:col-span-1',                                   // todayReceipts
 ] as const;
 
 export function KpiCards({ kpis }: { kpis: DashboardKPIs }) {
@@ -30,7 +39,8 @@ export function KpiCards({ kpis }: { kpis: DashboardKPIs }) {
         return (
           <motion.div
             key={cfg.key}
-            initial={{ opacity: reduced ? 1 : 0, y: reduced ? 0 : 20 }}
+            className={CARD_GRID[i]}
+            initial={{ opacity: reduced ? 1 : 0, y: reduced ? 0 : 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{
               delay:    reduced ? 0 : i * 0.07,
@@ -38,8 +48,8 @@ export function KpiCards({ kpis }: { kpis: DashboardKPIs }) {
               ease:     [0.22, 1, 0.36, 1],
             }}
           >
-            <Link href={cfg.href}>
-              <Card className="border-border/50 overflow-hidden cursor-pointer transition-all hover:border-border hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]">
+            <Link href={cfg.href} className="block h-full">
+              <Card className="h-full border-border/50 overflow-hidden cursor-pointer transition-all hover:border-border hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]">
                 <CardHeader className="pb-2 pt-4 px-4">
                   <div className="flex items-center justify-between">
                     <div className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ${cfg.bgCls}`}>
