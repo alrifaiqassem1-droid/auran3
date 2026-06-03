@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { useActiveBranch } from '@/hooks/use-active-branch';
-import { enqueueAndRun } from '@/lib/offline/queue';
+import { openCount, upsertCountItem } from '@/app/[locale]/(dashboard)/dashboard/count/actions';
 import { cn } from '@/lib/utils';
 import type { Product } from '@/types/db';
 
@@ -22,7 +22,6 @@ type Props = {
   product: Product | null;
 };
 
-// Strip unnecessary trailing zeros from float display
 function fmtQty(n: number): string {
   return parseFloat(n.toFixed(3)).toString();
 }
@@ -37,7 +36,7 @@ export function StocktakeResultSheet({ open, onClose, barcode, product }: Props)
   const [countedQty,   setCountedQty]   = useState(0);
   const [submitting,   setSubmitting]   = useState(false);
 
-  // ── Fetch expected stock from DB when sheet opens ─────────────────────────
+  // Fetch expected stock from DB when sheet opens
   useEffect(() => {
     if (!open || !product) {
       setExpectedQty(null);
@@ -61,7 +60,7 @@ export function StocktakeResultSheet({ open, onClose, barcode, product }: Props)
       });
   }, [open, product?.id, tenantId, activeBranchId]);
 
-  // ── Reset counter on every open ───────────────────────────────────────────
+  // Reset counter on every open
   useEffect(() => {
     if (open) setCountedQty(0);
   }, [open]);
@@ -69,7 +68,6 @@ export function StocktakeResultSheet({ open, onClose, barcode, product }: Props)
   const isKg = product?.unit === 'kg';
   const step = isKg ? 0.1 : 1;
 
-  // Live difference — float-safe
   const diff = expectedQty !== null
     ? parseFloat((countedQty - expectedQty).toFixed(3))
     : null;
@@ -85,9 +83,13 @@ export function StocktakeResultSheet({ open, onClose, barcode, product }: Props)
     if (!product || !activeBranchId) return;
     setSubmitting(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const res = await enqueueAndRun('record_count' as any, {
-        branch_id:   activeBranchId,
+      const countRes = await openCount(activeBranchId);
+      if (!countRes.ok || !countRes.countId) {
+        toast.error(countRes.error ?? 'Failed to open count session');
+        return;
+      }
+      const res = await upsertCountItem({
+        count_id:    countRes.countId,
         product_id:  product.id,
         counted_qty: countedQty,
       });
@@ -108,7 +110,7 @@ export function StocktakeResultSheet({ open, onClose, barcode, product }: Props)
 
         {product ? (
           <>
-            {/* ── Product header ─────────────────────────────────────────── */}
+            {/* Product header */}
             <SheetHeader className="pb-3">
               <div className="flex items-start gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-500/10">
@@ -133,9 +135,8 @@ export function StocktakeResultSheet({ open, onClose, barcode, product }: Props)
             <Separator className="mb-5" />
 
             <div className="space-y-5 pb-4">
-              {/* ── Expected / Counted / Diff summary ────────────────────── */}
+              {/* Expected / Counted / Diff summary */}
               <div className="grid grid-cols-3 gap-3 rounded-xl bg-muted/50 p-3 text-center">
-                {/* Expected */}
                 <div>
                   <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                     {t('expectedQty')}
@@ -149,7 +150,6 @@ export function StocktakeResultSheet({ open, onClose, barcode, product }: Props)
                   )}
                 </div>
 
-                {/* Counted */}
                 <div>
                   <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                     {t('countedQty')}
@@ -159,7 +159,6 @@ export function StocktakeResultSheet({ open, onClose, barcode, product }: Props)
                   </p>
                 </div>
 
-                {/* Difference — green if surplus, red if shortage, gray if exact */}
                 <div>
                   <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                     {t('difference')}
@@ -178,13 +177,12 @@ export function StocktakeResultSheet({ open, onClose, barcode, product }: Props)
                 </div>
               </div>
 
-              {/* ── Actual qty stepper ────────────────────────────────────── */}
+              {/* Actual qty stepper */}
               <div>
                 <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {t('countedQty')}
                 </p>
                 <div className="flex items-center gap-2">
-                  {/* Decrement */}
                   <button
                     onClick={decrement}
                     className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-muted/40 active:scale-95 transition-transform"
@@ -193,7 +191,6 @@ export function StocktakeResultSheet({ open, onClose, barcode, product }: Props)
                     <Minus className="h-4 w-4" />
                   </button>
 
-                  {/* Direct input */}
                   <Input
                     type="number"
                     inputMode={isKg ? 'decimal' : 'numeric'}
@@ -211,7 +208,6 @@ export function StocktakeResultSheet({ open, onClose, barcode, product }: Props)
                     className="h-11 flex-1 text-center text-base font-bold tabular-nums"
                   />
 
-                  {/* Increment */}
                   <button
                     onClick={increment}
                     className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-muted/40 active:scale-95 transition-transform"
@@ -222,7 +218,7 @@ export function StocktakeResultSheet({ open, onClose, barcode, product }: Props)
                 </div>
               </div>
 
-              {/* ── Confirm button ─────────────────────────────────────────── */}
+              {/* Confirm button */}
               <Button
                 className="h-12 w-full rounded-xl bg-blue-600 text-sm font-semibold hover:bg-blue-700"
                 onClick={handleSubmit}
@@ -238,7 +234,7 @@ export function StocktakeResultSheet({ open, onClose, barcode, product }: Props)
             </div>
           </>
         ) : (
-          /* ── Product not found ─────────────────────────────────────────── */
+          /* Product not found */
           <div className="py-8 text-center">
             <Package className="mx-auto mb-3 h-10 w-10 text-muted-foreground/30" />
             <p className="text-sm font-medium text-muted-foreground">{t('productNotFound')}</p>
