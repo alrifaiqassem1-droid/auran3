@@ -88,6 +88,7 @@ export async function signUp(input: SignupInput, captchaToken?: string) {
   });
 
   if (authError) {
+    console.error('[signUp] Supabase auth error:', authError.message, authError);
     await recordAttempt(ip, 'signup');
     await logAuditEvent({
       email: parsed.data.email, ip_address: ip, user_agent: userAgent,
@@ -99,18 +100,7 @@ export async function signUp(input: SignupInput, captchaToken?: string) {
     return { ok: false, error: 'genericError' };
   }
 
-  // إنشاء tenant + branch + membership ذري
-  const { error: rpcError } = await supabase.rpc<
-    'bootstrap_tenant',
-    { p_company: string; p_full_name: string }
-  >('bootstrap_tenant', {
-    p_company:    parsed.data.companyName,
-    p_full_name:  parsed.data.fullName,
-  });
-
-  if (rpcError) {
-    return { ok: false, error: 'genericError' };
-  }
+  // bootstrap_tenant requires auth.uid() — called in /auth/confirm after verifyOtp sets the session
 
   await logAuditEvent({
     email: parsed.data.email, ip_address: ip, user_agent: userAgent,

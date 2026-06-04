@@ -34,7 +34,23 @@ export async function GET(request: Request) {
   const { data, error } = await supabase.auth.verifyOtp({ type, token_hash });
 
   if (error) {
+    console.error('[auth/confirm] verifyOtp error:', error.message, error);
     return NextResponse.redirect(`${origin}/login?error=invalid_token`);
+  }
+
+  // verifyOtp sets the session — auth.uid() now works in RPCs
+  const fullName   = (data.user?.user_metadata?.full_name   as string | undefined) ?? '';
+  const companyName = (data.user?.user_metadata?.company_name as string | undefined) ?? '';
+
+  if (fullName && companyName) {
+    const { error: rpcError } = await supabase.rpc('bootstrap_tenant', {
+      p_company:   companyName,
+      p_full_name: fullName,
+    });
+    if (rpcError) {
+      // Log but don't block — tenant may already exist (e.g. link clicked twice)
+      console.error('[auth/confirm] bootstrap_tenant error:', rpcError.message, rpcError);
+    }
   }
 
   const { ip, userAgent } = await getClientInfo();
