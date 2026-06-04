@@ -28,7 +28,7 @@ export function AuthCard({ title, children }: AuthCardProps) {
         className="w-full max-w-sm"
       >
         <div className="mb-6 text-center">
-          <span className="text-xs font-semibold tracking-[0.35em] text-muted-foreground">AURAN</span>
+          <span className="text-3xl font-bold tracking-widest text-primary">AURAN</span>
         </div>
         <Card className="bg-card/60 backdrop-blur-md border-border/60 shadow-2xl">
           <CardHeader className="pb-4">

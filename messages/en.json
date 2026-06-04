@@ -34,7 +34,9 @@
     "verifyEmailTitle": "Check your inbox",
     "verifyEmailDesc": "We sent a verification link to your email. Click the link to complete registration and access AURAN.",
     "verifyEmailHint": "Can't find it? Check your spam or junk folder.",
-    "backToLogin": "Back to sign in"
+    "backToLogin": "Back to sign in",
+    "signInWithGoogle": "Sign in with Google",
+    "continueWithEmail": "or continue with email"
   },
   "Nav": {
     "home": "Home",

@@ -16,8 +16,9 @@ function stripLocale(pathname: string): string {
 }
 
 export async function middleware(request: NextRequest) {
-  // Supabase auth callback must bypass locale routing — the route handler lives at /auth/confirm
-  if (request.nextUrl.pathname === '/auth/confirm') return NextResponse.next();
+  // Supabase auth callbacks must bypass locale routing
+  const rawPath = request.nextUrl.pathname;
+  if (rawPath === '/auth/confirm' || rawPath === '/auth/callback') return NextResponse.next();
 
   const response = intlMiddleware(request);
   const path = stripLocale(request.nextUrl.pathname);

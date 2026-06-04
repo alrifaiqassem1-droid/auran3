@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { AuthCard } from '@/components/auth/auth-card';
+import { GoogleButton } from '@/components/auth/google-button';
 import { PasswordStrength } from '@/components/auth/password-strength';
 import { HCaptchaWidget, type HCaptchaHandle } from '@/components/auth/hcaptcha-widget';
 import { Button } from '@/components/ui/button';
@@ -48,6 +49,14 @@ export default function SignupPage() {
 
   return (
     <AuthCard title={t('signupTitle')}>
+      <GoogleButton />
+
+      <div className="flex items-center gap-3 my-5">
+        <div className="flex-1 h-px bg-border" />
+        <span className="text-xs text-muted-foreground">{t('continueWithEmail')}</span>
+        <div className="flex-1 h-px bg-border" />
+      </div>
+
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <FormField
@@ -57,7 +66,7 @@ export default function SignupPage() {
               <FormItem>
                 <FormLabel>{t('fullName')}</FormLabel>
                 <FormControl>
-                  <Input autoComplete="name" {...field} />
+                  <Input autoComplete="name" className="rounded-xl h-11" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -70,7 +79,7 @@ export default function SignupPage() {
               <FormItem>
                 <FormLabel>{t('companyName')}</FormLabel>
                 <FormControl>
-                  <Input {...field} />
+                  <Input className="rounded-xl h-11" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -83,7 +92,14 @@ export default function SignupPage() {
               <FormItem>
                 <FormLabel>{t('email')}</FormLabel>
                 <FormControl>
-                  <Input type="email" autoComplete="email" dir="ltr" placeholder="you@example.com" {...field} />
+                  <Input
+                    type="email"
+                    autoComplete="email"
+                    dir="ltr"
+                    placeholder="you@example.com"
+                    className="rounded-xl h-11"
+                    {...field}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -101,6 +117,7 @@ export default function SignupPage() {
                       type={showPassword ? 'text' : 'password'}
                       autoComplete="new-password"
                       dir="ltr"
+                      className="rounded-xl h-11 pe-10"
                       {...field}
                     />
                     <button
@@ -124,7 +141,7 @@ export default function SignupPage() {
             onExpire={() => setCaptchaToken(null)}
           />
 
-          <Button type="submit" className="w-full mt-2" disabled={loading}>
+          <Button type="submit" className="w-full mt-2 rounded-xl" disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : t('signupCta')}
           </Button>
         </form>
