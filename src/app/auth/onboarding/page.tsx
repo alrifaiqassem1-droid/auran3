@@ -109,26 +109,35 @@ export default function OnboardingPage() {
 
     const supabase = createClient();
 
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) {
-        window.location.replace('/login');
-        return;
+    // Use getUser() (server-validated) as the primary check.
+    // Fall back to getSession() before redirecting to /login — this avoids
+    // a false bounce when cookies have just been written but the async
+    // getUser() network call races the hydration on the first render.
+    supabase.auth.getUser().then(async ({ data: { user: verifiedUser } }) => {
+      let resolvedUser = verifiedUser;
+
+      if (!resolvedUser) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+          window.location.replace('/login');
+          return;
+        }
+        resolvedUser = session.user;
       }
 
-      setUser(user);
+      setUser(resolvedUser);
 
-      supabase
+      const { data: membership } = await supabase
         .from('memberships')
         .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle()
-        .then(({ data: membership }) => {
-          if (membership) {
-            window.location.replace('/dashboard');
-          } else {
-            setChecking(false);
-          }
-        });
+        .eq('user_id', resolvedUser.id)
+        .maybeSingle();
+
+      if (membership) {
+        window.location.replace('/dashboard');
+      } else {
+        setChecking(false);
+      }
     });
   }, []);
 
