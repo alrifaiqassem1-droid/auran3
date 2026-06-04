@@ -38,18 +38,27 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/login?error=invalid_token`);
   }
 
-  // verifyOtp sets the session — auth.uid() now works in RPCs
-  const fullName   = (data.user?.user_metadata?.full_name   as string | undefined) ?? '';
-  const companyName = (data.user?.user_metadata?.company_name as string | undefined) ?? '';
+  // Get the verified user to access their id and metadata
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (fullName && companyName) {
-    const { error: rpcError } = await supabase.rpc('bootstrap_tenant', {
-      p_company:   companyName,
-      p_full_name: fullName,
-    });
-    if (rpcError) {
-      // Log but don't block — tenant may already exist (e.g. link clicked twice)
-      console.error('[auth/confirm] bootstrap_tenant error:', rpcError.message, rpcError);
+  if (user) {
+    const fullName    = (user.user_metadata?.full_name    as string | undefined) ?? '';
+    const companyName = (user.user_metadata?.company_name as string | undefined) ?? '';
+
+    if (fullName && companyName) {
+      try {
+        const { error: rpcError } = await supabase.rpc('bootstrap_tenant', {
+          p_company:   companyName,
+          p_full_name: fullName,
+          p_user_id:   user.id,
+        });
+        if (rpcError) {
+          // Log but never block — tenant may already exist (link clicked twice)
+          console.error('[auth/confirm] bootstrap_tenant error:', rpcError.message, rpcError);
+        }
+      } catch (err) {
+        console.error('[auth/confirm] bootstrap_tenant threw:', err);
+      }
     }
   }
 
