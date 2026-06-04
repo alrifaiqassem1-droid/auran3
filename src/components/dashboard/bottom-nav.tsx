@@ -1,18 +1,27 @@
 'use client';
 import { useState } from 'react';
 import { usePathname, Link } from '@/i18n/navigation';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { MoreHorizontal } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { navItems, bottomPrimaryKeys, bottomSecondaryKeys } from './nav-config';
 import type { UserRole } from '@/types/db';
 
+const SCANNER_HREFS = new Set([
+  '/dashboard/scan',
+  '/dashboard/receiving',
+  '/dashboard/damaged',
+  '/dashboard/stocktake',
+  '/dashboard/count',
+]);
+
 type Props = { role: UserRole };
 
 export function BottomNav({ role }: Props) {
   const t        = useTranslations('Nav');
   const pathname = usePathname();
+  const locale   = useLocale();
   const [moreOpen, setMoreOpen] = useState(false);
 
   const primary   = navItems.filter((n) => bottomPrimaryKeys.includes(n.key));
@@ -40,22 +49,19 @@ export function BottomNav({ role }: Props) {
           if (item.isFab) {
             return (
               <div key={item.key} className="flex flex-1 items-center justify-center">
-                <Link
-                  href={item.href as string}
+                <a
+                  href={`/${locale}${item.href}`}
                   className="relative -top-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#EF9F27] ring-[3px] ring-[#fafaf8] dark:ring-[#0d0d0d] shadow-lg shadow-[#EF9F27]/30 transition-transform duration-200 active:scale-95"
                 >
                   <Icon className="h-5 w-5 text-white" />
-                </Link>
+                </a>
               </div>
             );
           }
 
-          return (
-            <Link
-              key={item.key}
-              href={item.href as string}
-              className="flex flex-1 flex-col items-center justify-center gap-1 transition-colors duration-200"
-            >
+          const itemClassName = 'flex flex-1 flex-col items-center justify-center gap-1 transition-colors duration-200';
+          const inner = (
+            <>
               <div
                 className={cn(
                   'flex h-8 w-8 items-center justify-center rounded-lg transition-colors duration-200',
@@ -76,6 +82,16 @@ export function BottomNav({ role }: Props) {
               >
                 {t(item.key as Parameters<typeof t>[0])}
               </span>
+            </>
+          );
+
+          return SCANNER_HREFS.has(item.href) ? (
+            <a key={item.key} href={`/${locale}${item.href}`} className={itemClassName}>
+              {inner}
+            </a>
+          ) : (
+            <Link key={item.key} href={item.href as string} className={itemClassName}>
+              {inner}
             </Link>
           );
         })}
@@ -106,20 +122,35 @@ export function BottomNav({ role }: Props) {
             {secondary.map((item) => {
               const Icon     = item.icon;
               const isActive = pathname.startsWith(item.href);
-              return (
+              const sheetClassName = cn(
+                'flex flex-col items-center gap-2 rounded-xl p-3 text-sm font-medium transition-colors',
+                isActive
+                  ? 'bg-[#EF9F27]/[0.12] text-[#EF9F27]'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+              );
+              const sheetInner = (
+                <>
+                  <Icon className="h-6 w-6" />
+                  {t(item.key as Parameters<typeof t>[0])}
+                </>
+              );
+
+              return SCANNER_HREFS.has(item.href) ? (
+                <a
+                  key={item.key}
+                  href={`/${locale}${item.href}`}
+                  className={sheetClassName}
+                >
+                  {sheetInner}
+                </a>
+              ) : (
                 <Link
                   key={item.key}
                   href={item.href as string}
                   onClick={() => setMoreOpen(false)}
-                  className={cn(
-                    'flex flex-col items-center gap-2 rounded-xl p-3 text-sm font-medium transition-colors',
-                    isActive
-                      ? 'bg-[#EF9F27]/[0.12] text-[#EF9F27]'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                  )}
+                  className={sheetClassName}
                 >
-                  <Icon className="h-6 w-6" />
-                  {t(item.key as Parameters<typeof t>[0])}
+                  {sheetInner}
                 </Link>
               );
             })}

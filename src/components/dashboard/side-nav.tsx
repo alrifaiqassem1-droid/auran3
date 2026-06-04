@@ -1,12 +1,20 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { usePathname, Link } from '@/i18n/navigation';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { navItems } from './nav-config';
 import { pendingCount } from '@/lib/offline/queue';
 import type { UserRole } from '@/types/db';
+
+const SCANNER_HREFS = new Set([
+  '/dashboard/scan',
+  '/dashboard/receiving',
+  '/dashboard/damaged',
+  '/dashboard/stocktake',
+  '/dashboard/count',
+]);
 
 type Props = { role: UserRole };
 
@@ -37,8 +45,9 @@ function PendingBadge() {
 }
 
 export function SideNav({ role }: Props) {
-  const t = useTranslations('Nav');
+  const t        = useTranslations('Nav');
   const pathname = usePathname();
+  const locale   = useLocale();
 
   const visible = navItems.filter((n) => !n.roles || n.roles.includes(role));
 
@@ -51,17 +60,14 @@ export function SideNav({ role }: Props) {
             pathname === item.href ||
             (item.href !== '/dashboard' && pathname.startsWith(item.href));
 
-          return (
-            <Link
-              key={item.key}
-              href={item.href as string}
-              className={cn(
-                'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
-                isActive
-                  ? 'text-primary'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-              )}
-            >
+          const itemClassName = cn(
+            'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+            isActive
+              ? 'text-primary'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+          );
+          const inner = (
+            <>
               {isActive && (
                 <motion.div
                   layoutId="side-active"
@@ -71,13 +77,22 @@ export function SideNav({ role }: Props) {
               )}
               <Icon className={cn('relative h-4 w-4 shrink-0', item.isFab && 'text-primary')} />
               <span className="relative flex-1">{t(item.key as Parameters<typeof t>[0])}</span>
-              {/* Pending badge on receiving/damage/count nav items */}
               {(item.key === 'receiving' || item.key === 'inventory' || item.key === 'damaged') && (
                 <PendingBadge />
               )}
               {item.isFab && (
                 <span className="relative ms-auto h-2 w-2 rounded-full bg-primary" />
               )}
+            </>
+          );
+
+          return SCANNER_HREFS.has(item.href) ? (
+            <a key={item.key} href={`/${locale}${item.href}`} className={itemClassName}>
+              {inner}
+            </a>
+          ) : (
+            <Link key={item.key} href={item.href as string} className={itemClassName}>
+              {inner}
             </Link>
           );
         })}
