@@ -11,15 +11,21 @@ declare global {
 
 declare const self: ServiceWorkerGlobalScope;
 
+// Paths that must always reach the network — never cached, never intercepted
+const BYPASS_PATH = /\/(auth|login|signup|verify-email|join)(\/|$|\?)/;
+
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
   runtimeCaching: [
-    // Supabase REST/auth — NetworkFirst, fall back to cache
+    // Supabase REST/storage — GET only; auth endpoints bypass SW entirely
+    // (POST auth calls must never be intercepted — cache.put() rejects POST requests)
     {
-      matcher: /^https:\/\/.*\.supabase\.co\/(rest|auth|storage)/,
+      matcher: ({ url, request }) =>
+        /^https:\/\/.*\.supabase\.co\/(rest|storage)/.test(url.href) &&
+        request.method === 'GET',
       handler: new NetworkFirst({ cacheName: 'supabase-api', networkTimeoutSeconds: 8 }),
     },
     // Fonts — CacheFirst long TTL
@@ -32,9 +38,12 @@ const serwist = new Serwist({
       matcher: /\/_next\/static\//,
       handler: new CacheFirst({ cacheName: 'next-static' }),
     },
-    // Pages (HTML navigation) — StaleWhileRevalidate
+    // Pages (HTML navigation) — GET only; auth/signup/login pages always hit network
     {
-      matcher: ({ request }) => request.mode === 'navigate',
+      matcher: ({ request, url }) =>
+        request.mode === 'navigate' &&
+        request.method === 'GET' &&
+        !BYPASS_PATH.test(url.pathname),
       handler: new StaleWhileRevalidate({ cacheName: 'pages' }),
     },
     ...defaultCache,
