@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   const origin = url.origin;
 
   if (!code) {
-    return NextResponse.redirect(`${origin}/login?error=missing_code`);
+    return NextResponse.redirect(`${origin}/auth/error?reason=missing_code`);
   }
 
   const cookieStore = await cookies();
@@ -27,36 +27,31 @@ export async function GET(request: Request) {
     }
   );
 
-  const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
-  if (exchangeError) {
-    console.error('[auth/callback] exchangeCodeForSession error:', exchangeError.message);
-    return NextResponse.redirect(`${origin}/login?error=oauth_failed`);
+  if (error) {
+    console.error('[auth/callback] exchangeCodeForSession error:', error);
+    return NextResponse.redirect(
+      `${origin}/auth/error?reason=${encodeURIComponent(error.message)}`
+    );
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (user) {
-    const fullName  = (user.user_metadata?.full_name    as string | undefined)
-                   || (user.user_metadata?.name         as string | undefined)
-                   || '';
-    const company   = (user.user_metadata?.company_name as string | undefined)
-                   || 'My Company';
-
-    try {
-      const { error: rpcError } = await supabase.rpc('bootstrap_tenant', {
-        p_user_id:   user.id,
-        p_full_name: fullName,
-        p_company:   company,
-      });
-      if (rpcError) {
-        // Log but never block — tenant may already exist (returning user)
-        console.error('[auth/callback] bootstrap_tenant error:', rpcError.message);
-      }
-    } catch (err) {
-      console.error('[auth/callback] bootstrap_tenant threw:', err);
-    }
+  const user = data.user;
+  if (!user) {
+    return NextResponse.redirect(`${origin}/auth/error?reason=no_user`);
   }
 
-  return NextResponse.redirect(`${origin}/dashboard`);
+  // Detect scenario: existing user (has membership) → /dashboard
+  //                  new user (no membership yet)   → /auth/onboarding
+  const { data: membership } = await supabase
+    .from('memberships')
+    .select('id')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (membership) {
+    return NextResponse.redirect(`${origin}/dashboard`);
+  }
+
+  return NextResponse.redirect(`${origin}/auth/onboarding`);
 }
