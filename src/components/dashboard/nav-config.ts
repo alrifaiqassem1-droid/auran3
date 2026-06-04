@@ -19,6 +19,7 @@ export const navItems: NavItem[] = [
   { key: 'receiving',     href: '/dashboard/receiving',         icon: Truck },
   { key: 'scan',          href: '/dashboard/scan',              icon: ScanLine, isFab: true },
   { key: 'inventory',     href: '/dashboard/count',             icon: ClipboardList },
+  { key: 'stocktake',    href: '/dashboard/stocktake',         icon: ClipboardList },
   { key: 'damaged',       href: '/dashboard/damaged',           icon: TriangleAlert },
   { key: 'expiry',        href: '/dashboard/expiry',            icon: CalendarClock },
   { key: 'products',      href: '/dashboard/products',          icon: Package },
@@ -36,6 +37,6 @@ export const bottomPrimaryKeys    = ['home', 'receiving', 'scan', 'inventory'];
 
 // Secondary items shown in the "More" bottom sheet
 export const bottomSecondaryKeys  = [
-  'damaged', 'expiry', 'products', 'import', 'reports',
+  'stocktake', 'damaged', 'expiry', 'products', 'import', 'reports',
   'notifications', 'barcode', 'settings', 'roles', 'audit',
 ];
