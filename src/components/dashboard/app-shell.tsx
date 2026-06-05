@@ -15,12 +15,12 @@ import type { Membership } from '@/lib/auth/get-session';
 import type { UserRole } from '@/types/db';
 
 type Props = {
-  user: { name: string; id: string };
+  user: { name: string; id: string; email: string };
   memberships: Membership[];
   children: ReactNode;
 };
 
-function ShellInner({ memberships, children }: Props) {
+function ShellInner({ user, memberships, children }: Props) {
   const pathname = usePathname();
   const reduced  = useReducedMotion();
   const role: UserRole = (memberships[0]?.role ?? 'staff') as UserRole;
@@ -55,7 +55,7 @@ function ShellInner({ memberships, children }: Props) {
 
   return (
     <div className="flex h-[100dvh] flex-col">
-      <TopBar />
+      <TopBar user={{ name: user.name, email: user.email }} />
       <OfflineBanner />
       <ExpiryAlert branchId={activeBranchId} />
       <div className="flex flex-1 overflow-hidden">

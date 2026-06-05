@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { navItems } from './nav-config';
 import { pendingCount } from '@/lib/offline/queue';
+import { SignOutButton } from './sign-out-button';
 import type { UserRole } from '@/types/db';
 
 const SCANNER_HREFS = new Set([
@@ -53,7 +54,7 @@ export function SideNav({ role }: Props) {
 
   return (
     <aside className="hidden md:flex w-56 shrink-0 flex-col border-e border-border/50 bg-background/50 h-[calc(100dvh-3.5rem)] sticky top-14 overflow-y-auto">
-      <nav className="flex flex-col gap-0.5 p-3 pt-4">
+      <nav className="flex flex-col gap-0.5 p-3 pt-4 flex-1">
         {visible.map((item) => {
           const Icon = item.icon;
           const isActive =
@@ -97,6 +98,9 @@ export function SideNav({ role }: Props) {
           );
         })}
       </nav>
+      <div className="p-3 border-t border-border/40">
+        <SignOutButton />
+      </div>
     </aside>
   );
 }

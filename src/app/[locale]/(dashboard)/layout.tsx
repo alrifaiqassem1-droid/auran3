@@ -26,7 +26,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <ErrorBoundary>
-      <AppShell user={{ name, id: user.id }} memberships={memberships}>
+      <AppShell user={{ name, id: user.id, email: user.email ?? '' }} memberships={memberships}>
         {children}
       </AppShell>
     </ErrorBoundary>

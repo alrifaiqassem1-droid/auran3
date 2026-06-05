@@ -4,6 +4,7 @@ import { usePathname, Link } from '@/i18n/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { MoreHorizontal } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { SignOutButton } from './sign-out-button';
 import { cn } from '@/lib/utils';
 import { navItems, bottomPrimaryKeys, bottomSecondaryKeys } from './nav-config';
 import type { UserRole } from '@/types/db';
@@ -118,7 +119,7 @@ export function BottomNav({ role }: Props) {
           <SheetHeader className="sr-only">
             <SheetTitle>{t('more')}</SheetTitle>
           </SheetHeader>
-          <div className="grid grid-cols-3 gap-3 py-4">
+          <div className="grid grid-cols-3 gap-3 pt-4 pb-2">
             {secondary.map((item) => {
               const Icon     = item.icon;
               const isActive = pathname.startsWith(item.href);
@@ -154,6 +155,9 @@ export function BottomNav({ role }: Props) {
                 </Link>
               );
             })}
+          </div>
+          <div className="border-t border-border/40 pt-2">
+            <SignOutButton className="justify-center" />
           </div>
         </SheetContent>
       </Sheet>
