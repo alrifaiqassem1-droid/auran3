@@ -108,37 +108,36 @@ export default function OnboardingPage() {
     setLocale(getLocale());
 
     const supabase = createClient();
+    let attempts = 0;
+    const maxAttempts = 5;
 
-    // Use getUser() (server-validated) as the primary check.
-    // Fall back to getSession() before redirecting to /login — this avoids
-    // a false bounce when cookies have just been written but the async
-    // getUser() network call races the hydration on the first render.
-    supabase.auth.getUser().then(async ({ data: { user: verifiedUser } }) => {
-      let resolvedUser = verifiedUser;
+    const checkSession = async () => {
+      const { data: { user: verifiedUser } } = await supabase.auth.getUser();
 
-      if (!resolvedUser) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) {
-          window.location.replace('/login');
+      if (verifiedUser) {
+        setUser(verifiedUser);
+        const { data: membership } = await supabase
+          .from('memberships')
+          .select('id')
+          .eq('user_id', verifiedUser.id)
+          .maybeSingle();
+        if (membership) {
+          window.location.replace('/dashboard');
           return;
         }
-        resolvedUser = session.user;
-      }
-
-      setUser(resolvedUser);
-
-      const { data: membership } = await supabase
-        .from('memberships')
-        .select('id')
-        .eq('user_id', resolvedUser.id)
-        .maybeSingle();
-
-      if (membership) {
-        window.location.replace('/dashboard');
-      } else {
         setChecking(false);
+        return;
       }
-    });
+
+      attempts++;
+      if (attempts < maxAttempts) {
+        setTimeout(checkSession, 500);
+      } else {
+        window.location.replace('/login');
+      }
+    };
+
+    checkSession();
   }, []);
 
   async function onSubmit(data: OnboardingInput) {
