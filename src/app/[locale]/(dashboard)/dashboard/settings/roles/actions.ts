@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { revalidatePath } from 'next/cache';
+import type { Json } from '@/types/database.types';
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -18,33 +19,55 @@ export interface RolePermissions {
 }
 
 export interface CustomRole {
-  id:          string;
-  name:        string;
-  permissions: RolePermissions;
-  created_at:  string;
+  id:           string;
+  name:         string;
+  permissions:  RolePermissions;
+  created_at:   string;
   member_count: number;
 }
 
 export interface StaffMember {
-  id:             string;   // membership id
-  user_id:        string;
-  user_name:      string | null;
-  user_email:     string | null;
-  role:           string;   // owner/manager/staff
-  custom_role_id: string | null;
+  id:               string;  // membership id
+  user_id:          string;
+  user_name:        string | null;
+  user_email:       string | null;
+  role:             string;
+  custom_role_id:   string | null;
   custom_role_name: string | null;
-  joined_at:      string;
+  joined_at:        string;
 }
 
 export interface Invitation {
-  id:              string;
-  email:           string;
-  custom_role_id:  string | null;
+  id:               string;
+  email:            string;
+  custom_role_id:   string | null;
   custom_role_name: string | null;
-  default_role:    string;
-  expires_at:      string;
-  created_at:      string;
+  default_role:     string;
+  expires_at:       string;
+  created_at:       string;
 }
+
+// ─── Join-result shapes (Supabase returns nested objects for FK joins) ─────
+
+type MembershipRow = {
+  id: string;
+  user_id: string;
+  role: string;
+  custom_role_id: string | null;
+  created_at: string;
+  profiles: { full_name: string | null } | null;
+  custom_roles: { name: string } | null;
+};
+
+type InvitationRow = {
+  id: string;
+  email: string;
+  custom_role_id: string | null;
+  default_role: string;
+  expires_at: string;
+  created_at: string;
+  custom_roles: { name: string } | null;
+};
 
 // ─── Helpers ──────────────────────────────────────────────────
 
@@ -57,7 +80,6 @@ async function getOwnerContext() {
   const tenantId: string | undefined = tenantIds?.[0];
   if (!tenantId) return null;
 
-  // Verify owner role
   const { data: membership } = await supabase
     .from('memberships')
     .select('role')
@@ -81,32 +103,29 @@ export async function getRolesAndStaff(): Promise<{
   const tenantId: string | undefined = tenantIds?.[0];
   if (!tenantId) return null;
 
-  // custom_roles, invitations are new tables not yet in database.types.ts
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any;
-
   const [rolesRes, membershipsRes, invRes] = await Promise.all([
-    db.from('custom_roles').select('id, name, permissions, created_at').eq('tenant_id', tenantId).order('created_at'),
-    db.from('memberships').select('id, user_id, role, custom_role_id, created_at, profiles(full_name), custom_roles(name)').eq('tenant_id', tenantId).order('created_at'),
-    db.from('invitations').select('id, email, custom_role_id, default_role, expires_at, created_at, custom_roles(name)').eq('tenant_id', tenantId).is('accepted_at', null).order('created_at', { ascending: false }),
+    supabase
+      .from('custom_roles')
+      .select('id, name, permissions, created_at')
+      .eq('tenant_id', tenantId)
+      .order('created_at'),
+    supabase
+      .from('memberships')
+      .select('id, user_id, role, custom_role_id, created_at, profiles(full_name), custom_roles(name)')
+      .eq('tenant_id', tenantId)
+      .order('created_at'),
+    supabase
+      .from('invitations')
+      .select('id, email, custom_role_id, default_role, expires_at, created_at, custom_roles(name)')
+      .eq('tenant_id', tenantId)
+      .is('accepted_at', null)
+      .order('created_at', { ascending: false }),
   ]);
 
-  type MRow = {
-    id: string; user_id: string; role: string; custom_role_id: string | null; created_at: string;
-    profiles: { full_name: string | null } | null;
-    custom_roles: { name: string } | null;
-  };
-
-  type InvRow = {
-    id: string; email: string; custom_role_id: string | null; default_role: string;
-    expires_at: string; created_at: string;
-    custom_roles: { name: string } | null;
-  };
-
-  // Fetch emails via admin client
+  // Fetch member emails via admin API (not in profiles table)
   const admin = createAdminClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const userIds = ((membershipsRes.data ?? []) as any[]).map((m: any) => (m as MRow).user_id);
+  const membershipRows = (membershipsRes.data ?? []) as unknown as MembershipRow[];
+  const userIds = membershipRows.map((m) => m.user_id);
   const emailMap = new Map<string, string>();
 
   if (userIds.length > 0) {
@@ -118,51 +137,43 @@ export async function getRolesAndStaff(): Promise<{
     } catch { /* ignore */ }
   }
 
-  // Count members per role
+  // Count members per custom role
   const memberCountMap = new Map<string, number>();
-  for (const m of (membershipsRes.data ?? []) as MRow[]) {
+  for (const m of membershipRows) {
     if (m.custom_role_id) {
       memberCountMap.set(m.custom_role_id, (memberCountMap.get(m.custom_role_id) ?? 0) + 1);
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const roles: CustomRole[] = ((rolesRes.data ?? []) as any[]).map((r: any) => ({
-    id:          r.id,
-    name:        r.name,
-    permissions: r.permissions as RolePermissions,
-    created_at:  r.created_at,
+  const roles: CustomRole[] = (rolesRes.data ?? []).map((r) => ({
+    id:           r.id,
+    name:         r.name,
+    permissions:  r.permissions as unknown as RolePermissions,
+    created_at:   r.created_at,
     member_count: memberCountMap.get(r.id) ?? 0,
   }));
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const staff: StaffMember[] = ((membershipsRes.data ?? []) as any[]).map((m: any) => {
-    const row = m as MRow;
-    return {
-      id:              row.id,
-      user_id:         row.user_id,
-      user_name:       row.profiles?.full_name ?? null,
-      user_email:      emailMap.get(row.user_id) ?? null,
-      role:            row.role,
-      custom_role_id:  row.custom_role_id,
-      custom_role_name: row.custom_roles?.name ?? null,
-      joined_at:       row.created_at,
-    };
-  });
+  const staff: StaffMember[] = membershipRows.map((m) => ({
+    id:               m.id,
+    user_id:          m.user_id,
+    user_name:        m.profiles?.full_name ?? null,
+    user_email:       emailMap.get(m.user_id) ?? null,
+    role:             m.role,
+    custom_role_id:   m.custom_role_id,
+    custom_role_name: m.custom_roles?.name ?? null,
+    joined_at:        m.created_at,
+  }));
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const invitations: Invitation[] = ((invRes.data ?? []) as any[]).map((inv: any) => {
-    const row = inv as InvRow;
-    return {
-      id:              row.id,
-      email:           row.email,
-      custom_role_id:  row.custom_role_id,
-      custom_role_name: row.custom_roles?.name ?? null,
-      default_role:    row.default_role,
-      expires_at:      row.expires_at,
-      created_at:      row.created_at,
-    };
-  });
+  const invRows = (invRes.data ?? []) as unknown as InvitationRow[];
+  const invitations: Invitation[] = invRows.map((inv) => ({
+    id:               inv.id,
+    email:            inv.email,
+    custom_role_id:   inv.custom_role_id,
+    custom_role_name: inv.custom_roles?.name ?? null,
+    default_role:     inv.default_role,
+    expires_at:       inv.expires_at,
+    created_at:       inv.created_at,
+  }));
 
   return { roles, staff, invitations };
 }
@@ -176,10 +187,9 @@ export async function createRole(
   const ctx = await getOwnerContext();
   if (!ctx) return { ok: false, error: 'غير مخوّل' };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (ctx.supabase as any).from('custom_roles').insert({
-    tenant_id: ctx.tenantId, name: name.trim(), permissions,
-  });
+  const { error } = await ctx.supabase
+    .from('custom_roles')
+    .insert({ tenant_id: ctx.tenantId, name: name.trim(), permissions: permissions as unknown as Json });
 
   if (error) return { ok: false, error: error.message };
 
@@ -196,10 +206,11 @@ export async function updateRole(
   const ctx = await getOwnerContext();
   if (!ctx) return { ok: false, error: 'غير مخوّل' };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (ctx.supabase as any).from('custom_roles')
-    .update({ name: name.trim(), permissions })
-    .eq('id', id).eq('tenant_id', ctx.tenantId);
+  const { error } = await ctx.supabase
+    .from('custom_roles')
+    .update({ name: name.trim(), permissions: permissions as unknown as Json })
+    .eq('id', id)
+    .eq('tenant_id', ctx.tenantId);
 
   if (error) return { ok: false, error: error.message };
 
@@ -212,9 +223,11 @@ export async function deleteRole(id: string): Promise<{ ok: boolean; error?: str
   const ctx = await getOwnerContext();
   if (!ctx) return { ok: false, error: 'غير مخوّل' };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (ctx.supabase as any).from('custom_roles')
-    .delete().eq('id', id).eq('tenant_id', ctx.tenantId);
+  const { error } = await ctx.supabase
+    .from('custom_roles')
+    .delete()
+    .eq('id', id)
+    .eq('tenant_id', ctx.tenantId);
 
   if (error) return { ok: false, error: error.message };
 
@@ -231,10 +244,11 @@ export async function updateMemberRole(
   const ctx = await getOwnerContext();
   if (!ctx) return { ok: false, error: 'غير مخوّل' };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (ctx.supabase as any).from('memberships')
+  const { error } = await ctx.supabase
+    .from('memberships')
     .update({ role: defaultRole, custom_role_id: customRoleId })
-    .eq('id', membershipId).eq('tenant_id', ctx.tenantId);
+    .eq('id', membershipId)
+    .eq('tenant_id', ctx.tenantId);
 
   if (error) {
     const msg = error.message.includes('AURAN_LAST_OWNER')
@@ -258,8 +272,11 @@ export async function removeMember(membershipId: string): Promise<{ ok: boolean;
   const ctx = await getOwnerContext();
   if (!ctx) return { ok: false, error: 'غير مخوّل' };
 
-  const { error } = await ctx.supabase.from('memberships')
-    .delete().eq('id', membershipId).eq('tenant_id', ctx.tenantId);
+  const { error } = await ctx.supabase
+    .from('memberships')
+    .delete()
+    .eq('id', membershipId)
+    .eq('tenant_id', ctx.tenantId);
 
   if (error) {
     const msg = error.message.includes('AURAN_LAST_OWNER')
@@ -281,15 +298,15 @@ export async function sendInvitation(
   const ctx = await getOwnerContext();
   if (!ctx) return { ok: false, error: 'غير مخوّل' };
 
-  // Delete expired/existing pending invite for this email
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const dbAny = ctx.supabase as any;
-  await dbAny.from('invitations')
+  // Delete any existing pending invite for this email first
+  await ctx.supabase
+    .from('invitations')
     .delete()
     .eq('tenant_id', ctx.tenantId)
     .eq('email', email.toLowerCase().trim());
 
-  const { data, error } = await dbAny.from('invitations')
+  const { data, error } = await ctx.supabase
+    .from('invitations')
     .insert({
       tenant_id:      ctx.tenantId,
       email:          email.toLowerCase().trim(),
@@ -304,16 +321,18 @@ export async function sendInvitation(
 
   await logAudit({ tenant_id: ctx.tenantId, action: 'invite', entity: 'membership', details: { email, defaultRole } });
   revalidatePath('/dashboard/settings/roles');
-  return { ok: true, token: (data as { token: string }).token };
+  return { ok: true, token: data.token };
 }
 
 export async function cancelInvitation(invitationId: string): Promise<{ ok: boolean; error?: string }> {
   const ctx = await getOwnerContext();
   if (!ctx) return { ok: false, error: 'غير مخوّل' };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (ctx.supabase as any).from('invitations')
-    .delete().eq('id', invitationId).eq('tenant_id', ctx.tenantId);
+  const { error } = await ctx.supabase
+    .from('invitations')
+    .delete()
+    .eq('id', invitationId)
+    .eq('tenant_id', ctx.tenantId);
 
   if (error) return { ok: false, error: error.message };
   revalidatePath('/dashboard/settings/roles');
@@ -325,9 +344,7 @@ export async function acceptInvitation(token: string): Promise<{ ok: boolean; er
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: 'يجب تسجيل الدخول أولاً' };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any;
-  const { data: inv } = await db
+  const { data: inv } = await supabase
     .from('invitations')
     .select('id, tenant_id, custom_role_id, default_role, expires_at')
     .eq('token', token)
@@ -337,21 +354,21 @@ export async function acceptInvitation(token: string): Promise<{ ok: boolean; er
   if (!inv) return { ok: false, error: 'الدعوة غير صالحة أو منتهية' };
   if (new Date(inv.expires_at) < new Date()) return { ok: false, error: 'انتهت صلاحية الدعوة' };
 
-  // Create membership — cast to bypass custom_role_id type (new column)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: mErr } = await (supabase as any).from('memberships').insert({
-    user_id:        user.id,
-    tenant_id:      inv.tenant_id,
-    role:           inv.default_role,
-    custom_role_id: inv.custom_role_id,
-  });
+  const { error: mErr } = await supabase
+    .from('memberships')
+    .insert({
+      user_id:        user.id,
+      tenant_id:      inv.tenant_id,
+      role:           inv.default_role,
+      custom_role_id: inv.custom_role_id,
+    });
 
   if (mErr && !mErr.message.includes('duplicate')) {
     return { ok: false, error: mErr.message };
   }
 
-  // Mark invitation as accepted
-  await db.from('invitations')
+  await supabase
+    .from('invitations')
     .update({ accepted_at: new Date().toISOString() })
     .eq('id', inv.id);
 

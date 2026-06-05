@@ -15,6 +15,8 @@ export type GoodsReceipt    = Tables<'goods_receipts'>;
 export type DamagedProduct  = Tables<'damaged_products'>;
 export type InventoryCount  = Tables<'inventory_counts'>;
 export type Notification    = Tables<'notifications'>;
+export type Invitation      = Tables<'invitations'>;
+export type CustomRole      = Tables<'custom_roles'>;
 
 export type UserRole        = Enums<'user_role'>;
 export type ProductUnit     = Enums<'product_unit'>;
