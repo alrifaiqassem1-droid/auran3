@@ -139,6 +139,34 @@ export async function toggleActive(
   return { ok: true };
 }
 
+export async function updateProductPrice(
+  id: string,
+  sellPrice: number,
+): Promise<ActionResult> {
+  if (!id || sellPrice <= 0) return { ok: false, error: 'بيانات غير صحيحة' };
+
+  const supabase = await createServerClient();
+  const tenantId = await getTenantId(supabase);
+  if (!tenantId) return { ok: false, error: 'جلسة غير صالحة' };
+
+  if (!(await hasManagerRole(supabase, tenantId))) {
+    return { ok: false, error: 'لا تملك الصلاحية لتعديل الأسعار' };
+  }
+
+  const { error } = await supabase
+    .from('products')
+    .update({ sell_price: sellPrice })
+    .eq('id', id)
+    .eq('tenant_id', tenantId);
+
+  if (error) return { ok: false, error: 'فشل تحديث السعر' };
+
+  revalidatePath('/dashboard/products');
+  revalidatePath(`/dashboard/products/${id}`);
+  void logAudit({ tenant_id: tenantId, action: 'update', entity: 'product', entity_id: id, details: { sell_price: sellPrice } });
+  return { ok: true };
+}
+
 export async function deleteProduct(id: string): Promise<ActionResult> {
   const supabase = await createServerClient();
   const tenantId = await getTenantId(supabase);

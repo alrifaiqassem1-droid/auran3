@@ -9,8 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { createClient } from '@/lib/supabase/client';
 import { formatAED } from '@/lib/pricing';
+import { updateProductPrice } from '@/app/[locale]/(dashboard)/dashboard/products/actions';
 import type { Product } from '@/types/db';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -52,13 +52,9 @@ export function PricingResultSheet({ open, onClose, barcode, product }: Props) {
     }
     setSubmitting(true);
     try {
-      const { error } = await createClient()
-        .from('products')
-        .update({ sell_price: parsedPrice })
-        .eq('id', product.id);
-
-      if (error) {
-        toast.error(error.message);
+      const res = await updateProductPrice(product.id, parsedPrice);
+      if (!res.ok) {
+        toast.error(res.error);
       } else {
         toast.success(t('priceUpdated'));
         onClose();
