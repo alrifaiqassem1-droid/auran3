@@ -36,7 +36,7 @@ export function ReceiveLine({ line, onEdit, onRemove }: Props) {
         <Package className="h-4 w-4 text-primary" />
       </button>
 
-      <button className="flex-1 min-w-0 text-left" onClick={onEdit}>
+      <button className="flex-1 min-w-0 text-start" onClick={onEdit}>
         <p className="font-medium text-sm truncate leading-tight">{line.product_name}</p>
         <p className="text-[11px] text-muted-foreground tabular-nums mt-0.5">
           {qtyLabel}

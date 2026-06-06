@@ -180,7 +180,7 @@ function ItemDetailSheet({
               </p>
             </div>
             <div className="relative">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 select-none text-sm text-muted-foreground">
+              <span className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 select-none text-sm text-muted-foreground">
                 AED
               </span>
               <Input
@@ -191,7 +191,7 @@ function ItemDetailSheet({
                 value={cost}
                 onFocus={(e) => e.target.select()}
                 onChange={(e) => setCost(parseFloat(e.target.value) || 0)}
-                className="h-11 pl-12 tabular-nums"
+                className="h-11 ps-12 tabular-nums"
               />
             </div>
           </div>
@@ -296,7 +296,7 @@ function AddManuallySheet({
               <button
                 key={p.id}
                 onClick={() => { reset(); onOpenChange(false); onSelect(p); }}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 active:bg-muted/60"
+                className="flex w-full items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-muted/40 active:bg-muted/60"
               >
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
                   <Package className="h-4 w-4 text-primary" />
