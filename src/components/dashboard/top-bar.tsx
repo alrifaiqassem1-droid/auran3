@@ -3,6 +3,7 @@ import { BranchSwitcher } from './branch-switcher';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { UserMenu } from './user-menu';
+import { PwaInstallButton } from './pwa-install-button';
 
 type Props = { user: { name: string; email: string } };
 
@@ -13,6 +14,7 @@ export function TopBar({ user }: Props) {
       <div className="flex items-center gap-1.5">
         <ThemeToggle />
         <LanguageSwitcher />
+        <PwaInstallButton />
       </div>
 
       {/* Right: branch selector + user avatar dropdown + AURAN logo */}
