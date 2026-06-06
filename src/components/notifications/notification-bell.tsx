@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import { subscribeToNotifications } from '@/lib/notifications/realtime';
+import { markAsRead, markAllAsRead } from '@/app/[locale]/(dashboard)/dashboard/notifications/actions';
 import { Link } from '@/i18n/navigation';
 import type { AppNotification } from '@/lib/notifications/realtime';
 
@@ -67,19 +68,13 @@ export function NotificationBell({ userId, tenantId, branchId }: Props) {
   }, [userId, tenantId, branchId, fetchRecent]);
 
   async function markAllRead() {
-    const supabase = createClient();
-    await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('user_id', userId)
-      .eq('is_read', false);
     setItems((prev) => prev.map((i) => ({ ...i, is_read: true })));
+    await markAllAsRead();
   }
 
   async function markOneRead(id: string) {
-    const supabase = createClient();
-    await supabase.from('notifications').update({ is_read: true }).eq('id', id);
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, is_read: true } : i)));
+    await markAsRead(id);
   }
 
   return (

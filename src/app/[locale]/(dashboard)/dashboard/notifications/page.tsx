@@ -27,7 +27,6 @@ export default async function NotificationsPage() {
   return (
     <div className="container max-w-2xl px-4 py-6">
       <NotificationsClient
-        userId={user.id}
         initialItems={(data ?? []) as Parameters<typeof NotificationsClient>[0]['initialItems']}
       />
     </div>

@@ -7,11 +7,10 @@ import { Bell, AlertTriangle, Package, ClipboardCheck, ShoppingCart, Check } fro
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { createClient } from '@/lib/supabase/client';
+import { markAsRead, markAllAsRead } from '@/app/[locale]/(dashboard)/dashboard/notifications/actions';
 import type { AppNotification } from '@/lib/notifications/realtime';
 
 interface Props {
-  userId: string;
   initialItems: AppNotification[];
 }
 
@@ -33,7 +32,7 @@ function fmtDateTime(iso: string) {
   }).format(new Date(iso));
 }
 
-export function NotificationsClient({ userId, initialItems }: Props) {
+export function NotificationsClient({ initialItems }: Props) {
   const t = useTranslations('Notifications');
   const [items, setItems] = useState(initialItems);
   const [filter, setFilter] = useState<Filter>('all');
@@ -42,15 +41,13 @@ export function NotificationsClient({ userId, initialItems }: Props) {
   const filtered = filter === 'unread' ? items.filter((i) => !i.is_read) : items;
 
   async function markAll() {
-    const supabase = createClient();
-    await supabase.from('notifications').update({ is_read: true }).eq('user_id', userId).eq('is_read', false);
     setItems((prev) => prev.map((i) => ({ ...i, is_read: true })));
+    await markAllAsRead();
   }
 
   async function markOne(id: string) {
-    const supabase = createClient();
-    await supabase.from('notifications').update({ is_read: true }).eq('id', id);
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, is_read: true } : i)));
+    await markAsRead(id);
   }
 
   return (
