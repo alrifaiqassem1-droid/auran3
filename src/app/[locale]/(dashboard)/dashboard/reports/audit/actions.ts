@@ -37,9 +37,7 @@ export async function getAuditLog(
 
   const isOwner = membership?.role === 'owner';
 
-  // audit_log is a new table not yet in database.types.ts — cast to bypass TS check
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let query = (supabase as any)
+  let query = supabase
     .from('audit_log')
     .select('id, user_name, action, entity, entity_id, details, created_at')
     .eq('tenant_id', tenantId)
