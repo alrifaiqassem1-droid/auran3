@@ -30,12 +30,16 @@ export async function getBatchesForProduct(
   branchId: string,
 ): Promise<BatchLike[]> {
   const supabase = await createServerClient();
+  const { data: tenantIds } = await supabase.rpc('auth_tenant_ids');
+  const tenantId: string | undefined = tenantIds?.[0];
+  if (!tenantId) return [];
 
   const { data } = await supabase
     .from('stock_batches')
     .select('id, quantity, expiry_date, received_at')
     .eq('product_id', productId)
     .eq('branch_id', branchId)
+    .eq('tenant_id', tenantId)
     .gt('quantity', 0)
     .order('expiry_date', { ascending: true, nullsFirst: false })
     .order('received_at', { ascending: true });

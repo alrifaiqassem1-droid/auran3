@@ -125,6 +125,8 @@ export async function openCount(
   branchId: string,
 ): Promise<{ ok: boolean; countId?: string; error?: string }> {
   const supabase = await createServerClient();
+  const { data: tenantIds } = await supabase.rpc('auth_tenant_ids');
+  if (!tenantIds?.[0]) return { ok: false, error: 'جلسة غير صالحة' };
   const { data, error } = await rpcOpenCount(supabase, branchId);
   if (error) return { ok: false, error: error.message };
   return { ok: true, countId: data ?? undefined };
@@ -141,6 +143,8 @@ export async function upsertCountItem(input: {
   }
 
   const supabase = await createServerClient();
+  const { data: tenantIds } = await supabase.rpc('auth_tenant_ids');
+  if (!tenantIds?.[0]) return { ok: false, error: 'جلسة غير صالحة' };
   const { data, error } = await rpcUpsertCountItem(supabase, {
     count_id:   parsed.data.count_id,
     product_id: parsed.data.product_id,
