@@ -123,7 +123,7 @@ export function CountListClient({ sessions }: Props) {
                   {/* Action */}
                   <div className="flex shrink-0 items-center gap-2 text-xs font-medium text-muted-foreground group-hover:text-foreground">
                     <span>{s.status === 'open' ? t('openSession') : t('viewSession')}</span>
-                    <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                    <ChevronRight className="h-4 w-4 transition-transform rtl:rotate-180 ltr:group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5" />
                   </div>
                 </div>
               </Link>

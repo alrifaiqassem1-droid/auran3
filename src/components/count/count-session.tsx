@@ -143,7 +143,7 @@ function AddManuallySheet({
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) setSearch(''); onOpenChange(v); }}>
-      <SheetContent side="bottom" className="max-h-[70vh] rounded-t-2xl pb-8">
+      <SheetContent side="bottom" className="max-h-[70vh] overflow-y-auto rounded-t-2xl pb-8">
         <SheetHeader className="mb-4">
           <SheetTitle>{t('pickProduct')}</SheetTitle>
         </SheetHeader>
@@ -166,7 +166,7 @@ function AddManuallySheet({
                 <button
                   key={p.id}
                   onClick={() => { onAdd(p); onOpenChange(false); setSearch(''); }}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 active:bg-muted/60"
+                  className="flex w-full items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-muted/40 active:bg-muted/60"
                 >
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
                     {already
