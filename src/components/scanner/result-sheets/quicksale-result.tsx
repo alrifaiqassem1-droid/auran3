@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { useActiveBranch } from '@/hooks/use-active-branch';
 import { enqueueAndRun } from '@/lib/offline/queue';
+import type { OpType } from '@/lib/offline/db';
 import { formatAED } from '@/lib/pricing';
 import { cn } from '@/lib/utils';
 import type { Product } from '@/types/db';
@@ -46,8 +47,7 @@ export function QuicksaleResultSheet({ open, onClose, barcode, product }: Props)
     if (!product || !activeBranchId) return;
     setSubmitting(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const res = await enqueueAndRun('record_sale' as any, {
+      const res = await enqueueAndRun('record_sale' as unknown as OpType, {
         branch_id:      activeBranchId,
         product_id:     product.id,
         quantity:       qty,
