@@ -34,7 +34,6 @@ export default async function SettingsPage() {
   return (
     <div className="container max-w-2xl px-4 py-6">
       <SettingsClient
-        userId={user.id}
         email={user.email ?? ''}
         tenant={tenantRes.data as { id: string; name: string; trn: string | null; vat_rate: number } | null}
         profile={profileRes.data as { full_name: string | null; phone: string | null } | null}

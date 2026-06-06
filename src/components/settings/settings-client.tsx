@@ -7,7 +7,7 @@ import { Building2, User, Shield, Palette, Download, Smartphone } from 'lucide-r
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { createClient } from '@/lib/supabase/client';
+import { updateProfile, updateTenant } from '@/app/[locale]/(dashboard)/dashboard/settings/actions';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -58,7 +58,6 @@ function PwaInstallSection() {
 }
 
 interface Props {
-  userId: string;
   email: string;
   tenant: { id: string; name: string; trn: string | null; vat_rate: number } | null;
   profile: { full_name: string | null; phone: string | null } | null;
@@ -79,7 +78,7 @@ function Section({ icon: Icon, title, children }: {
   );
 }
 
-export function SettingsClient({ userId, email, tenant, profile, role }: Props) {
+export function SettingsClient({ email, tenant, profile, role }: Props) {
   const t = useTranslations('Settings');
   const [isPending, startTransition] = useTransition();
 
@@ -92,11 +91,8 @@ export function SettingsClient({ userId, email, tenant, profile, role }: Props) 
 
   function saveProfile() {
     startTransition(async () => {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from('profiles')
-        .upsert({ id: userId, full_name: fullName.trim(), phone: phone.trim() });
-      if (error) { toast.error(t('saveError')); return; }
+      const res = await updateProfile(fullName, phone);
+      if (!res.ok) { toast.error(res.error); return; }
       toast.success(t('profileSaved'));
     });
   }
@@ -104,12 +100,8 @@ export function SettingsClient({ userId, email, tenant, profile, role }: Props) 
   function saveTenant() {
     if (!tenant || !isOwner) return;
     startTransition(async () => {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from('tenants')
-        .update({ name: tenantName.trim(), trn: trn.trim() || null })
-        .eq('id', tenant.id);
-      if (error) { toast.error(t('saveError')); return; }
+      const res = await updateTenant(tenantName, trn);
+      if (!res.ok) { toast.error(res.error); return; }
       toast.success(t('tenantSaved'));
     });
   }
