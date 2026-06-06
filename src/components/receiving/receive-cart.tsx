@@ -108,7 +108,7 @@ function ItemDetailSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto rounded-t-[24px] pb-safe">
+      <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto rounded-t-[24px] pb-8">
         <SheetHeader className="mb-5">
           <SheetTitle className="truncate">{product?.name ?? ''}</SheetTitle>
         </SheetHeader>
@@ -350,7 +350,8 @@ export function ReceiveCart({ suppliers, categories, products, initialBarcode }:
   const [detailInitial, setDetailInitial] = useState<Partial<CartItem>>({});
   const [editingIndex,  setEditingIndex]  = useState<number | null>(null);
 
-  const initDone = useRef(false);
+  const initDone    = useRef(false);
+  const isLookingUp = useRef(false);
   const tenantId = activeMembership?.tenant_id;
 
   // ── Open detail sheet for a new item ─────────────────────────────────────
@@ -419,21 +420,25 @@ export function ReceiveCart({ suppliers, categories, products, initialBarcode }:
   // ── Scanner callback (via ScannerLayout) ──────────────────────────────────
   const handleScanned = useCallback(
     (barcode: string) => {
+      if (isLookingUp.current) return;
+      isLookingUp.current = true;
       setShowScanner(false);
-      if (!tenantId) return;
-      lookupProduct(barcode, tenantId).then((product) => {
-        if (product) {
-          openDetail({
-            id: product.id, name: product.name,
-            unit: product.unit as 'pcs' | 'kg',
-            barcode,
-            cost_price: (product.cost_price as number) ?? 0,
-          });
-        } else {
-          setPendingBarcode(barcode);
-          setShowProductForm(true);
-        }
-      });
+      if (!tenantId) { isLookingUp.current = false; return; }
+      lookupProduct(barcode, tenantId)
+        .then((product) => {
+          if (product) {
+            openDetail({
+              id: product.id, name: product.name,
+              unit: product.unit as 'pcs' | 'kg',
+              barcode,
+              cost_price: (product.cost_price as number) ?? 0,
+            });
+          } else {
+            setPendingBarcode(barcode);
+            setShowProductForm(true);
+          }
+        })
+        .finally(() => { isLookingUp.current = false; });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [tenantId],
