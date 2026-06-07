@@ -227,7 +227,13 @@
     "manualAddTitle": "إضافة صنف",
     "selectProductPlaceholder": "ابحث عن منتج...",
     "addToList": "إضافة للقائمة",
-    "noProducts": "لا توجد منتجات"
+    "noProducts": "لا توجد منتجات",
+    "receiptsHistory": "الاستلامات السابقة",
+    "receiptsHistoryDesc": "آخر 50 عملية استلام",
+    "searchByReference": "بحث برقم الفاتورة أو اسم المورد...",
+    "noReceiptsFound": "لا توجد نتائج",
+    "noReference": "بدون رقم فاتورة",
+    "items": "صنف"
   },
   "Damage": {
     "pageTitle": "المنتجات التالفة",

@@ -227,7 +227,13 @@
     "manualAddTitle": "Add Item",
     "selectProductPlaceholder": "Search product...",
     "addToList": "Add to List",
-    "noProducts": "No products found"
+    "noProducts": "No products found",
+    "receiptsHistory": "Previous Receipts",
+    "receiptsHistoryDesc": "Last 50 receiving operations",
+    "searchByReference": "Search by reference or supplier...",
+    "noReceiptsFound": "No results found",
+    "noReference": "No reference",
+    "items": "items"
   },
   "Damage": {
     "pageTitle": "Damaged Products",

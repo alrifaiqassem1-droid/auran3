@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { ReceiveCart } from '@/components/receiving/receive-cart';
+import { ReceiptsHistory } from '@/components/receiving/receipts-history';
 
 export async function generateMetadata({
   params,
@@ -25,7 +26,7 @@ export default async function ReceivingPage({
 
   const empty = Promise.resolve({ data: [] });
 
-  const [suppliersRes, categoriesRes, productsRes] = await Promise.all([
+  const [suppliersRes, categoriesRes, productsRes, receiptsRes] = await Promise.all([
     tenantId
       ? supabase.from('suppliers').select('id, name').eq('tenant_id', tenantId).order('name')
       : empty,
@@ -40,9 +41,29 @@ export default async function ReceivingPage({
           .eq('is_active', true)
           .order('name')
       : empty,
+    tenantId
+      ? supabase
+          .from('goods_receipts')
+          .select('id, reference, total_cost, created_at, supplier_id, suppliers(name), goods_receipt_items(id)')
+          .eq('tenant_id', tenantId)
+          .order('created_at', { ascending: false })
+          .limit(50)
+      : empty,
   ]);
 
   const t = await getTranslations('Receiving');
+
+  type ReceiptRow = {
+    id: string;
+    reference: string | null;
+    total_cost: number;
+    created_at: string;
+    supplier_id: string | null;
+    suppliers: { name: string } | null;
+    goods_receipt_items: { id: string }[];
+  };
+
+  const receipts = (receiptsRes.data ?? []) as unknown as ReceiptRow[];
 
   return (
     <div className="container max-w-2xl px-4 py-6">
@@ -65,6 +86,8 @@ export default async function ReceivingPage({
         }
         initialBarcode={barcode ?? null}
       />
+
+      <ReceiptsHistory receipts={receipts} />
     </div>
   );
 }
