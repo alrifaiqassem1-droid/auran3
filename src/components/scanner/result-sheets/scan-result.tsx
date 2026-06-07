@@ -68,6 +68,23 @@ export function ScanResultSheet({ open, onClose, barcode, product, onAddProduct 
                   {barcode && (
                     <p className="mt-0.5 font-mono text-xs text-muted-foreground">{barcode}</p>
                   )}
+                  {(product.sell_price != null || totalStock !== null) && (
+                    <div className="mt-1.5 flex items-center gap-2 text-xs">
+                      {product.sell_price != null && (
+                        <span className="font-semibold tabular-nums text-primary">
+                          AED {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(product.sell_price)}
+                        </span>
+                      )}
+                      {product.sell_price != null && totalStock !== null && (
+                        <span className="text-muted-foreground">·</span>
+                      )}
+                      {totalStock !== null && (
+                        <span className="text-muted-foreground">
+                          المخزون: <span className="font-semibold tabular-nums text-foreground">{new Intl.NumberFormat('en-US').format(totalStock)}</span> {product.unit === 'kg' ? 'kg' : 'pcs'}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </SheetHeader>
