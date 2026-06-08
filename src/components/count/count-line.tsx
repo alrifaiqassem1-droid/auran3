@@ -12,6 +12,7 @@ interface Props {
   item: CountItemRow;
   onChange: (productId: string, qty: number) => void;
   onConfirm?: (productId: string) => void;
+  canSeeExpected: boolean;
 }
 
 function diffBadge(diff: number) {
@@ -29,7 +30,7 @@ function diffBadge(diff: number) {
 }
 
 export const CountLine = forwardRef<HTMLInputElement, Props>(function CountLine(
-  { item, onChange, onConfirm },
+  { item, onChange, onConfirm, canSeeExpected },
   ref,
 ) {
   const t = useTranslations('Count');
@@ -48,13 +49,15 @@ export const CountLine = forwardRef<HTMLInputElement, Props>(function CountLine(
           </Badge>
         </div>
 
-        <div className="mt-1.5 flex items-center gap-2 text-[11px] text-muted-foreground">
-          <span>
-            {t('expected')}:{' '}
-            <span className="font-medium tabular-nums text-foreground">{fmt(item.expected_qty)}</span>
-          </span>
-          {item.counted_qty > 0 && diffBadge(diff)}
-        </div>
+        {canSeeExpected && (
+          <div className="mt-1.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+            <span>
+              {t('expected')}:{' '}
+              <span className="font-medium tabular-nums text-foreground">{fmt(item.expected_qty)}</span>
+            </span>
+            {item.counted_qty > 0 && diffBadge(diff)}
+          </div>
+        )}
       </div>
 
       {/* Right: quantity input + confirm button */}

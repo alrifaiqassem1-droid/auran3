@@ -312,9 +312,10 @@ interface Props {
   initialItems: CountItemRow[];
   products: CountProduct[];
   branchId: string;
+  canSeeExpected: boolean;
 }
 
-export function CountSession({ countId, initialItems, products, branchId }: Props) {
+export function CountSession({ countId, initialItems, products, branchId, canSeeExpected }: Props) {
   const t = useTranslations('Count');
   const { activeMembership } = useActiveBranch();
   const reduced = useReducedMotion();
@@ -572,6 +573,7 @@ export function CountSession({ countId, initialItems, products, branchId }: Prop
                     item={item}
                     onChange={handleQtyChange}
                     onConfirm={handleConfirmItem}
+                    canSeeExpected={canSeeExpected}
                     ref={setInputRef(item.product_id)}
                   />
                 </motion.div>

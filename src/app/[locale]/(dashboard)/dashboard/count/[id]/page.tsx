@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { getCountSessionDetails, getProductsForCount } from '../actions';
 import { CountSession } from '@/components/count/count-session';
 import { CountSummary } from '@/components/count/count-summary';
+import { getSession } from '@/lib/auth/get-session';
 import type { CountItemRow } from '../actions';
 
 export async function generateMetadata({
@@ -21,6 +22,10 @@ export default async function CountSessionPage({
   params: Promise<{ locale: string; id: string }>;
 }) {
   const { id } = await params;
+
+  const sessionData = await getSession();
+  const membership = sessionData?.memberships?.[0];
+  const canSeeExpected = membership?.role === 'owner' || membership?.role === 'manager';
 
   const [session, products] = await Promise.all([
     getCountSessionDetails(id),
@@ -57,6 +62,7 @@ export default async function CountSessionPage({
       initialItems={session.items as CountItemRow[]}
       products={products}
       branchId={session.branch_id}
+      canSeeExpected={canSeeExpected}
     />
   );
 }
