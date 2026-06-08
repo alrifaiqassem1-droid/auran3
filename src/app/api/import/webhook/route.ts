@@ -67,10 +67,8 @@ export async function POST(req: NextRequest) {
     if (msg.includes('AURAN_BAD_SECRET') || msg.includes('AURAN_NO_SECRET')) {
       return NextResponse.json({ error: 'AURAN_BAD_SECRET' }, { status: 401 });
     }
-    return NextResponse.json(
-      { error: 'AURAN_RPC_ERROR', message: msg },
-      { status: 500 },
-    );
+    console.error('[webhook_pos_import]', msg);
+    return NextResponse.json({ error: 'AURAN_RPC_ERROR' }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, result: data }, { status: 200 });

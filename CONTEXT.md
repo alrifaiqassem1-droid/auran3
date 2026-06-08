@@ -295,7 +295,7 @@ product_unit:      pcs | kg
 | `bootstrap_tenant(p_company, p_full_name, p_user_id)` | Creates tenant + default branch + profile + owner membership |
 | `auth_tenant_ids()` | Returns current user's tenant IDs (used for RLS scope) |
 | `has_role(p_roles[], p_tenant)` | Boolean role check |
-| `_guard(p_roles[], p_tenant)` | Raises exception if role check fails (used inside other RPCs) |
+| `_guard(p_tenant uuid, p_roles user_role[])` | Raises exception if role check fails (used inside other RPCs) |
 | `receive_goods(p_payload jsonb)` | Atomic receipt: creates receipt + batches + movements |
 | `record_damage(p_payload jsonb)` | Atomic damage: deducts from FEFO batches + creates record |
 | `close_count(p_payload jsonb)` | Atomic stocktake close: applies adjustments |
@@ -411,7 +411,7 @@ Custom roles are assigned via `memberships.custom_role_id` alongside the base `r
 3. **Nav filtering** (`nav-config.ts`) — `navItems` has `roles?: UserRole[]`; filtered before rendering in SideNav/BottomNav
 4. **Page-level guard** (e.g. `settings/roles/page.tsx`) — server component checks `membership.role !== 'owner'` → `redirect('/dashboard')`
 5. **Server action guard** (`getOwnerContext()` in `roles/actions.ts`) — re-verifies owner role server-side on every mutation
-6. **DB functions** — `_guard(p_roles[], p_tenant)` raises exception inside RPCs if caller lacks required role
+6. **DB functions** — `_guard(p_tenant, p_roles[])` raises exception inside RPCs if caller lacks required role
 
 ---
 
@@ -748,3 +748,68 @@ HCAPTCHA_SECRET_KEY=...                  # server-side hCaptcha verify
 6. **Translations?** Add keys to both `messages/ar.json` and `messages/en.json` under the appropriate namespace.
 7. **Build check:** `npx tsc --noEmit && npm run build`
 8. **Deploy:** `git add . && git commit -m "feat: ..." && npx vercel --prod`
+
+---
+
+## 13. Webhook POS Import Integration  [PHASE 11 — COMPLETE]
+
+External POS systems / middleware push sales to AURAN over HTTP. The secret
+*is* the authorization (replaces the user-session _guard used by the in-app
+path). One shared FEFO core serves both the authenticated and webhook paths.
+
+### Flow
+POS/middleware --POST--> /api/import/webhook --> webhook_pos_import(secret, payload)
+(route.ts, admin client): hash secret -> find endpoint -> derive tenant+branch
+from endpoint -> _apply_pos_import_core (shared FEFO).
+
+### Database (migrations 0013 + 0014)
+- webhook_endpoints table: id, tenant_id, branch_id, label, secret_hash,
+  secret_prefix, is_active, last_used_at, created_by, created_at.
+  Only the SHA-256 hash of the secret is stored; plaintext shown once on creation.
+  RLS: tenant members can SELECT their own; all writes via SECURITY DEFINER RPCs.
+- generate_webhook_secret(p_branch, p_label) -> (endpoint_id, secret) set.
+  Owner/manager only (_guard). Secret = 'whk_' + 24 random bytes hex.
+- revoke_webhook_endpoint(p_endpoint) -> soft-disable (is_active = false).
+- _apply_pos_import_core(p_tenant, p_branch, p_payload, p_actor) — extracted
+  body of apply_pos_import. NO auth, NO idempotency (callers handle those).
+  This is now the SINGLE source of FEFO deduction order.
+- apply_pos_import(p_payload) — rewritten as thin wrapper: derive tenant ->
+  _guard -> idempotency -> core. Behaviour identical to original 0010.
+- webhook_pos_import(p_secret, p_payload) — hash secret -> find active endpoint
+  -> derive tenant+branch FROM ENDPOINT (never from payload) -> idempotency ->
+  core. No user session.
+
+### API route
+src/app/api/import/webhook/route.ts — Node runtime, force-dynamic.
+- Secret read from Authorization: Bearer whk_... header (not body).
+- Zod validates body { source?, file_name?, client_op_id?, rows[] } (branch
+  excluded — derived from secret).
+- Calls webhook_pos_import via admin client.
+- HTTP map: 200 success / 401 no-or-bad-secret / 422 bad payload / 500 rpc error
+  / 405 non-POST.
+
+### UI (import wizard)
+- import/webhook-actions.ts — server actions: listWebhooks, createWebhook,
+  revokeWebhook (RPCs self-guard, no extra role check).
+- import/webhook-tab.tsx — WebhookTab: endpoint URL + copy, label + generate
+  (secret shown once in amber box), endpoint list with revoke.
+- engine.ts — webhook adapter available: true.
+- pos-import-wizard.tsx — renders {activeId === 'webhook' && <WebhookTab />}.
+- Translations: 20 keys under Import namespace in ar.json / en.json.
+
+### Critical learnings (corrections to earlier docs)
+- _guard real signature is _guard(p_tenant uuid, p_roles user_role[]) —
+  tenant FIRST, then roles. (Earlier section 2 listed the args reversed.)
+- SECURITY DEFINER RPCs using digest() / gen_random_bytes() MUST set
+  search_path = public, extensions on Supabase — pgcrypto lives in the
+  extensions schema, not public.
+- next-intl middleware swallows /api/* unless excluded. The config.matcher
+  must start with ?!api|... so API route handlers aren't routed through intl
+  (was returning 404 on the live endpoint).
+- database.types.ts manually extended with webhook_endpoints table +
+  generate_webhook_secret / revoke_webhook_endpoint signatures.
+
+### Testing the endpoint (PowerShell)
+$body = '{"source":"POS","rows":[{"barcode":"<real>","quantity":1,"total":5}]}'
+Invoke-RestMethod -Method Post -Uri "https://auran.vercel.app/api/import/webhook" -Headers @{ Authorization = "Bearer whk_..." } -ContentType "application/json" -Body $body
+# -> { ok: True, result: { import_id, matched, unmatched, deducted } }

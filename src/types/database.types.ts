@@ -963,6 +963,60 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_endpoints: {
+        Row: {
+          branch_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          label: string
+          last_used_at: string | null
+          secret_hash: string
+          secret_prefix: string
+          tenant_id: string
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          label: string
+          last_used_at?: string | null
+          secret_hash: string
+          secret_prefix: string
+          tenant_id: string
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          last_used_at?: string | null
+          secret_hash?: string
+          secret_prefix?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_endpoints_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhook_endpoints_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -976,6 +1030,11 @@ export type Database = {
         Returns: undefined
       }
       apply_pos_import: { Args: { p_payload: Json }; Returns: Json }
+      generate_webhook_secret: {
+        Args: { p_branch: string; p_label: string }
+        Returns: { endpoint_id: string; secret: string }[]
+      }
+      revoke_webhook_endpoint: { Args: { p_endpoint: string }; Returns: undefined }
       auth_tenant_ids: { Args: never; Returns: string[] }
       bootstrap_tenant: {
         Args: { p_company: string; p_full_name: string; p_user_id: string }
