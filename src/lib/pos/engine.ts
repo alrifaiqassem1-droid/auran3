@@ -57,7 +57,7 @@ importEngine.register({
 
 importEngine.register({
   id: 'webhook', nameKey: 'adapterWebhookName', descKey: 'adapterWebhookDesc',
-  icon: 'Webhook', available: false,
+  icon: 'Webhook', available: true,
 });
 
 importEngine.register({

@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { importEngine } from '@/lib/pos/engine';
 import { CsvTab } from './adapters/csv-tab';
 import { ManualTab } from './adapters/manual-tab';
+import { WebhookTab } from '@/app/[locale]/(dashboard)/dashboard/import/webhook-tab';
 import type { MatchableProduct } from '@/app/[locale]/(dashboard)/dashboard/import/actions';
 
 const ICONS: Record<string, React.ElementType> = {
@@ -117,6 +118,7 @@ export function PosImportWizard({ products }: Props) {
         >
           {activeId === 'csv'    && <CsvTab    products={products} onSuccess={handleSuccess} />}
           {activeId === 'manual' && <ManualTab products={products} onSuccess={handleSuccess} />}
+          {activeId === 'webhook' && <WebhookTab />}
         </motion.div>
       </AnimatePresence>
     </div>
