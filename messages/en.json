@@ -623,6 +623,13 @@
     "printTitle": "Barcode Labels",
     "ean13Hint": "12-13 digits",
     "ean8Hint": "7-8 digits",
-    "upcHint": "11-12 digits"
+    "upcHint": "11-12 digits",
+    "templates": "Quick templates",
+    "tplProduct": "Product label",
+    "tplShelf": "Shelf label",
+    "tplQr": "QR only",
+    "vatIncluded": "VAT inclusive",
+    "vatIncludedShort": "Incl. 5% VAT",
+    "previewHint": "This is exactly what prints"
   }
 }

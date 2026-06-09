@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { ChevronsUpDown, Printer } from 'lucide-react';
+import { ChevronsUpDown, Printer, Tag, LayoutGrid, QrCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -41,17 +41,18 @@ export function BarcodeGeneratorClient({ products, companyName: initCompany }: P
     { value: 'UPC',     label: 'UPC-A',    hint: t('upcHint')   },
   ];
 
-  const [format, setFormat]         = useState<BarcodeFormat>('CODE128');
-  const [value, setValue]           = useState('');
-  const [selProduct, setSelProduct] = useState<Product | null>(null);
-  const [comboOpen, setComboOpen]   = useState(false);
-  const [company, setCompany]       = useState(initCompany);
-  const [price, setPrice]           = useState('');
-  const [size, setSize]             = useState(2);
-  const [fgColor, setFgColor]       = useState('#000000');
-  const [bgColor, setBgColor]       = useState('#ffffff');
-  const [showText, setShowText]     = useState(true);
-  const [copies, setCopies]         = useState(1);
+  const [format, setFormat]           = useState<BarcodeFormat>('CODE128');
+  const [value, setValue]             = useState('');
+  const [selProduct, setSelProduct]   = useState<Product | null>(null);
+  const [comboOpen, setComboOpen]     = useState(false);
+  const [company, setCompany]         = useState(initCompany);
+  const [price, setPrice]             = useState('');
+  const [size, setSize]               = useState(2);
+  const [fgColor, setFgColor]         = useState('#000000');
+  const [bgColor, setBgColor]         = useState('#ffffff');
+  const [showText, setShowText]       = useState(true);
+  const [vatIncluded, setVatIncluded] = useState(false);
+  const [copies, setCopies]           = useState(1);
   const [renderError, setRenderError] = useState('');
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -109,6 +110,20 @@ export function BarcodeGeneratorClient({ products, companyName: initCompany }: P
     setComboOpen(false);
   }
 
+  function applyTemplate(tpl: 'product' | 'shelf' | 'qr') {
+    if (tpl === 'product') {
+      if (format === 'qrcode') setFormat('CODE128');
+      setSize(2);
+      setShowText(true);
+    } else if (tpl === 'shelf') {
+      if (format === 'qrcode') setFormat('CODE128');
+      setSize(3);
+      setShowText(true);
+    } else if (tpl === 'qr') {
+      setFormat('qrcode');
+    }
+  }
+
   function handlePrint() {
     const canvas = canvasRef.current;
     if (!canvas || !trimmed || renderError) return;
@@ -117,11 +132,14 @@ export function BarcodeGeneratorClient({ products, companyName: initCompany }: P
     const win = window.open('', '_blank', 'width=900,height=700');
     if (!win) return;
 
+    const vatLine = vatIncluded ? `<div class="vat">${t('vatIncludedShort')}</div>` : '';
+
     const label = `
       <div class="label">
         ${company ? `<div class="co">${company}</div>` : ''}
         <img src="${img}" alt="barcode">
         ${price ? `<div class="pr">${price}</div>` : ''}
+        ${price ? vatLine : ''}
       </div>`;
 
     win.document.write(`<!DOCTYPE html>
@@ -135,6 +153,7 @@ body{font-family:Arial,sans-serif;background:#fff}
 .co{font-size:9pt;font-weight:700;margin-bottom:2mm}
 img{display:block;max-width:100%}
 .pr{font-size:10pt;font-weight:700;margin-top:2mm}
+.vat{font-size:7pt;color:#444;margin-top:.5mm}
 @media print{@page{margin:5mm}}
 </style></head>
 <body>
@@ -144,6 +163,8 @@ img{display:block;max-width:100%}
     win.document.close();
   }
 
+  const showPreview = trimmed && !renderError;
+
   return (
     <div className="space-y-5">
       <div className="mb-6">
@@ -151,186 +172,228 @@ img{display:block;max-width:100%}
         <p className="mt-1 text-sm text-muted-foreground">{t('pageSubtitle')}</p>
       </div>
 
-      {/* Barcode type */}
-      <Section title={t('barcodeType')}>
-        <div className="flex flex-wrap gap-2">
-          {FORMATS.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => setFormat(f.value)}
-              className={cn(
-                'min-h-[44px] rounded-xl border px-3 py-2 text-start text-xs font-medium transition-colors',
-                format === f.value
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground',
-              )}
-            >
-              <div className="font-semibold">{f.label}</div>
-              {f.hint && <div className="mt-0.5 opacity-60">{f.hint}</div>}
-            </button>
-          ))}
-        </div>
-      </Section>
-
-      {/* Input data */}
-      <Section title={t('inputSection')}>
-        <div className="space-y-3">
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t('product')}</label>
-            <Popover open={comboOpen} onOpenChange={setComboOpen}>
-              <PopoverTrigger asChild>
-                <button className="flex h-11 w-full items-center justify-between rounded-xl border border-border bg-background px-3 text-sm">
-                  <span className={selProduct ? 'text-foreground' : 'text-muted-foreground'}>
-                    {selProduct?.name ?? t('selectProduct')}
-                  </span>
-                  <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-40" />
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.4fr_1fr]">
+        <div className="space-y-5">
+          <Section title={t('barcodeType')}>
+            <div className="flex flex-wrap gap-2">
+              {FORMATS.map((f) => (
+                <button
+                  key={f.value}
+                  onClick={() => setFormat(f.value)}
+                  className={cn(
+                    'min-h-[44px] rounded-xl border px-3 py-2 text-start text-xs font-medium transition-colors',
+                    format === f.value
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground',
+                  )}
+                >
+                  <div className="font-semibold">{f.label}</div>
+                  {f.hint && <div className="mt-0.5 opacity-60">{f.hint}</div>}
                 </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                <Command>
-                  <CommandInput placeholder={t('searchProduct')} />
-                  <CommandList className="max-h-52">
-                    <CommandEmpty>{t('noResults')}</CommandEmpty>
-                    <CommandGroup>
-                      {products.map((p) => (
-                        <CommandItem key={p.id} value={p.name} onSelect={() => pickProduct(p)}>
-                          <span className="flex-1">{p.name}</span>
-                          {p.barcode && (
-                            <span className="font-mono text-[10px] text-muted-foreground">{p.barcode}</span>
-                          )}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t('barcodeValue')}</label>
-            <Input
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              placeholder={t('valuePlaceholder')}
-              dir="ltr"
-              className="h-11"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t('companyName')}</label>
-            <Input value={company} onChange={(e) => setCompany(e.target.value)} className="h-11" />
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t('price')}</label>
-            <Input
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              placeholder={t('pricePlaceholder')}
-              inputMode="decimal"
-              dir="ltr"
-              className="h-11"
-            />
-          </div>
-        </div>
-      </Section>
-
-      {/* Live preview */}
-      <Section title={t('preview')}>
-        <div
-          className="flex min-h-36 items-center justify-center overflow-auto rounded-xl p-4"
-          style={{ background: bgColor, border: `1px solid ${fgColor}20` }}
-        >
-          {!trimmed && <p className="text-xs text-muted-foreground">{t('noValue')}</p>}
-          {trimmed && renderError && (
-            <p className="max-w-xs text-center text-xs text-destructive">{renderError}</p>
-          )}
-          <canvas ref={canvasRef} className={cn(!trimmed || renderError ? 'hidden' : '')} />
-        </div>
-      </Section>
-
-      {/* Customization */}
-      <Section title={t('customization')}>
-        <div className="space-y-4">
-          <div>
-            <div className="mb-2 flex items-center justify-between">
-              <label className="text-xs font-medium text-muted-foreground">{t('size')}</label>
-              <span className="tabular-nums text-xs text-muted-foreground">{size}×</span>
+              ))}
             </div>
-            <input
-              type="range"
-              min={1}
-              max={4}
-              step={0.5}
-              value={size}
-              onChange={(e) => setSize(Number(e.target.value))}
-              className="w-full accent-primary"
-            />
-          </div>
+          </Section>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t('fgColor')}</label>
-              <div className="flex h-11 items-center gap-2 rounded-xl border border-border px-3">
-                <input
-                  type="color"
-                  value={fgColor}
-                  onChange={(e) => setFgColor(e.target.value)}
-                  className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0"
+          <Section title={t('templates')}>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => applyTemplate('product')}
+                className="flex min-h-[44px] items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+              >
+                <Tag className="h-4 w-4" />
+                {t('tplProduct')}
+              </button>
+              <button
+                onClick={() => applyTemplate('shelf')}
+                className="flex min-h-[44px] items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+              >
+                <LayoutGrid className="h-4 w-4" />
+                {t('tplShelf')}
+              </button>
+              <button
+                onClick={() => applyTemplate('qr')}
+                className="flex min-h-[44px] items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+              >
+                <QrCode className="h-4 w-4" />
+                {t('tplQr')}
+              </button>
+            </div>
+          </Section>
+
+          <Section title={t('inputSection')}>
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t('product')}</label>
+                <Popover open={comboOpen} onOpenChange={setComboOpen}>
+                  <PopoverTrigger asChild>
+                    <button className="flex h-11 w-full items-center justify-between rounded-xl border border-border bg-background px-3 text-sm">
+                      <span className={selProduct ? 'text-foreground' : 'text-muted-foreground'}>
+                        {selProduct?.name ?? t('selectProduct')}
+                      </span>
+                      <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-40" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder={t('searchProduct')} />
+                      <CommandList className="max-h-52">
+                        <CommandEmpty>{t('noResults')}</CommandEmpty>
+                        <CommandGroup>
+                          {products.map((p) => (
+                            <CommandItem key={p.id} value={p.name} onSelect={() => pickProduct(p)}>
+                              <span className="flex-1">{p.name}</span>
+                              {p.barcode && (
+                                <span className="font-mono text-[10px] text-muted-foreground">{p.barcode}</span>
+                              )}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t('barcodeValue')}</label>
+                <Input
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  placeholder={t('valuePlaceholder')}
+                  dir="ltr"
+                  className="h-11"
                 />
-                <span className="font-mono text-xs text-muted-foreground">{fgColor}</span>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t('companyName')}</label>
+                <Input value={company} onChange={(e) => setCompany(e.target.value)} className="h-11" />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t('price')}</label>
+                <Input
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  placeholder={t('pricePlaceholder')}
+                  inputMode="decimal"
+                  dir="ltr"
+                  className="h-11"
+                />
               </div>
             </div>
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t('bgColor')}</label>
-              <div className="flex h-11 items-center gap-2 rounded-xl border border-border px-3">
+          </Section>
+
+          <Section title={t('customization')}>
+            <div className="space-y-4">
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="text-xs font-medium text-muted-foreground">{t('size')}</label>
+                  <span className="tabular-nums text-xs text-muted-foreground">{size}×</span>
+                </div>
                 <input
-                  type="color"
-                  value={bgColor}
-                  onChange={(e) => setBgColor(e.target.value)}
-                  className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0"
+                  type="range"
+                  min={1}
+                  max={4}
+                  step={0.5}
+                  value={size}
+                  onChange={(e) => setSize(Number(e.target.value))}
+                  className="w-full accent-primary"
                 />
-                <span className="font-mono text-xs text-muted-foreground">{bgColor}</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t('fgColor')}</label>
+                  <div className="flex h-11 items-center gap-2 rounded-xl border border-border px-3">
+                    <input
+                      type="color"
+                      value={fgColor}
+                      onChange={(e) => setFgColor(e.target.value)}
+                      className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0"
+                    />
+                    <span className="font-mono text-xs text-muted-foreground">{fgColor}</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t('bgColor')}</label>
+                  <div className="flex h-11 items-center gap-2 rounded-xl border border-border px-3">
+                    <input
+                      type="color"
+                      value={bgColor}
+                      onChange={(e) => setBgColor(e.target.value)}
+                      className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0"
+                    />
+                    <span className="font-mono text-xs text-muted-foreground">{bgColor}</span>
+                  </div>
+                </div>
+              </div>
+
+              {format !== 'qrcode' && (
+                <div className="flex items-center justify-between rounded-xl bg-muted/30 px-3 py-2.5">
+                  <span className="text-sm">{t('showText')}</span>
+                  <Switch checked={showText} onCheckedChange={setShowText} />
+                </div>
+              )}
+
+              <div className="flex items-center justify-between rounded-xl bg-muted/30 px-3 py-2.5">
+                <span className="text-sm">{t('vatIncluded')}</span>
+                <Switch checked={vatIncluded} onCheckedChange={setVatIncluded} />
               </div>
             </div>
-          </div>
+          </Section>
 
-          {format !== 'qrcode' && (
-            <div className="flex items-center justify-between rounded-xl bg-muted/30 px-3 py-2.5">
-              <span className="text-sm">{t('showText')}</span>
-              <Switch checked={showText} onCheckedChange={setShowText} />
+          <Section title={t('printSection')}>
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t('copies')}</label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={copies}
+                  onChange={(e) => setCopies(Math.max(1, Math.min(100, Number(e.target.value) || 1)))}
+                  dir="ltr"
+                  className="h-11 w-28"
+                />
+              </div>
+              <Button
+                onClick={handlePrint}
+                disabled={!trimmed || !!renderError}
+                className="h-11 w-full gap-2 rounded-xl text-sm font-semibold shadow-md shadow-primary/20"
+              >
+                <Printer className="h-4 w-4" />
+                {t('print')} • {copies} {t('copiesLabel')}
+              </Button>
             </div>
-          )}
+          </Section>
         </div>
-      </Section>
 
-      {/* Print */}
-      <Section title={t('printSection')}>
-        <div className="space-y-3">
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{t('copies')}</label>
-            <Input
-              type="number"
-              min={1}
-              max={100}
-              value={copies}
-              onChange={(e) => setCopies(Math.max(1, Math.min(100, Number(e.target.value) || 1)))}
-              dir="ltr"
-              className="h-11 w-28"
-            />
-          </div>
-          <Button
-            onClick={handlePrint}
-            disabled={!trimmed || !!renderError}
-            className="h-11 w-full gap-2 rounded-xl text-sm font-semibold shadow-md shadow-primary/20"
-          >
-            <Printer className="h-4 w-4" />
-            {t('print')} • {copies} {t('copiesLabel')}
-          </Button>
+        <div className="lg:sticky lg:top-6 lg:self-start">
+          <Section title={t('preview')}>
+            <div
+              className="flex min-h-36 flex-col items-center justify-center gap-2 overflow-auto rounded-xl p-4"
+              style={{ background: bgColor, border: `1px solid ${fgColor}20` }}
+            >
+              {!trimmed && <p className="text-xs text-muted-foreground">{t('noValue')}</p>}
+              {trimmed && renderError && (
+                <p className="max-w-xs text-center text-xs text-destructive">{renderError}</p>
+              )}
+              {showPreview && company && (
+                <div className="text-sm font-bold" style={{ color: fgColor }}>{company}</div>
+              )}
+              <canvas ref={canvasRef} className={cn(showPreview ? '' : 'hidden')} />
+              {showPreview && price && (
+                <div className="text-sm font-bold" style={{ color: fgColor }}>{price}</div>
+              )}
+              {showPreview && price && vatIncluded && (
+                <div className="text-[10px] opacity-70" style={{ color: fgColor }}>{t('vatIncludedShort')}</div>
+              )}
+            </div>
+            <p className="mt-3 text-center text-[11px] text-muted-foreground">{t('previewHint')}</p>
+          </Section>
         </div>
-      </Section>
+      </div>
     </div>
   );
 }

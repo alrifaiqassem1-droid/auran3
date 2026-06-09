@@ -623,6 +623,13 @@
     "printTitle": "بطاقات الباركود",
     "ean13Hint": "أرقام 12-13",
     "ean8Hint": "أرقام 7-8",
-    "upcHint": "رقماً 11-12"
+    "upcHint": "رقماً 11-12",
+    "templates": "قوالب سريعة",
+    "tplProduct": "ملصق منتج",
+    "tplShelf": "ملصق رفّ",
+    "tplQr": "QR فقط",
+    "vatIncluded": "شامل ضريبة القيمة المضافة",
+    "vatIncludedShort": "شامل ض.ق.م 5%",
+    "previewHint": "هذا ما سيُطبع تماماً"
   }
 }
