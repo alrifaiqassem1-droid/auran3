@@ -576,7 +576,11 @@
     "colUser": "الموظف",
     "colAction": "العملية",
     "colEntity": "القسم",
-    "colDetails": "التفاصيل"
+    "colDetails": "التفاصيل",
+    "section_inventory_counts": "جرد المخزون",
+    "section_products": "المنتجات",
+    "section_damaged_products": "التالف",
+    "section_goods_receipts": "الاستلام"
   },
   "Expiry": {
     "pageTitle": "تتبع الصلاحيات",
