@@ -88,18 +88,24 @@ export type Database = {
       categories: {
         Row: {
           created_at: string
+          default_critical_days: number
+          default_warning_days: number
           id: string
           name: string
           tenant_id: string
         }
         Insert: {
           created_at?: string
+          default_critical_days?: number
+          default_warning_days?: number
           id?: string
           name: string
           tenant_id: string
         }
         Update: {
           created_at?: string
+          default_critical_days?: number
+          default_warning_days?: number
           id?: string
           name?: string
           tenant_id?: string
@@ -706,6 +712,8 @@ export type Database = {
           category_id: string | null
           cost_price: number
           created_at: string
+          expiry_critical_days: number | null
+          expiry_warning_days: number | null
           id: string
           is_active: boolean
           low_stock_threshold: number
@@ -720,6 +728,8 @@ export type Database = {
           category_id?: string | null
           cost_price?: number
           created_at?: string
+          expiry_critical_days?: number | null
+          expiry_warning_days?: number | null
           id?: string
           is_active?: boolean
           low_stock_threshold?: number
@@ -734,6 +744,8 @@ export type Database = {
           category_id?: string | null
           cost_price?: number
           created_at?: string
+          expiry_critical_days?: number | null
+          expiry_warning_days?: number | null
           id?: string
           is_active?: boolean
           low_stock_threshold?: number

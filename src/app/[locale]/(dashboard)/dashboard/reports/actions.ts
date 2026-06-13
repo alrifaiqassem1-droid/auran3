@@ -217,7 +217,7 @@ export async function getExpiryData(branchId: string): Promise<ExpiryData> {
   const result: ExpiryData = { expired: [], critical: [], warning: [], safe: [] };
 
   for (const row of rows) {
-    const status = expiryStatus(row.expiry_date, today);
+    const status = expiryStatus(row.expiry_date, 7, 30, today);
     const daysLeft = row.expiry_date
       ? Math.floor((new Date(row.expiry_date + 'T00:00:00').getTime() - today.getTime()) / 86_400_000)
       : null;

@@ -2,8 +2,25 @@
 
 import { createClient } from '@/lib/supabase/client';
 
-const STORAGE_KEY  = 'auran_last_expiry_check';
-const INTERVAL_MS  = 6 * 60 * 60 * 1000; // 6 hours
+const STORAGE_KEY   = 'auran_last_expiry_check';
+const INTERVAL_MS   = 6 * 60 * 60 * 1000; // 6 hours
+const HORIZON_DAYS  = 90;                   // fetch window; covers large custom thresholds
+
+// ─── Locale-aware notification strings ────────────────────────────────────────
+const MSG = {
+  ar: {
+    expired: (n: number) => `🔴 ${n} منتج منتهي الصلاحية`,
+    urgent:  (n: number) => `🟠 ${n} منتج ينتهي قريباً`,
+    warning: (n: number) => `🟡 ${n} منتج ينتهي خلال فترة التحذير`,
+  },
+  en: {
+    expired: (n: number) => `🔴 ${n} product${n !== 1 ? 's' : ''} expired`,
+    urgent:  (n: number) => `🟠 ${n} product${n !== 1 ? 's' : ''} expiring soon`,
+    warning: (n: number) => `🟡 ${n} product${n !== 1 ? 's' : ''} expiring soon`,
+  },
+} as const;
+
+type Locale = keyof typeof MSG;
 
 // ─── Throttle guard ───────────────────────────────────────────
 export function needsMorningCheck(): boolean {
@@ -18,30 +35,38 @@ export function needsMorningCheck(): boolean {
 }
 
 // ─── Main check ───────────────────────────────────────────────
-export async function runExpiryCheck(branchId: string): Promise<number> {
+export async function runExpiryCheck(branchId: string, locale: string = 'ar'): Promise<number> {
   try {
     const supabase = createClient();
+    const msg = MSG[(locale as Locale) in MSG ? (locale as Locale) : 'ar'];
 
     // Date boundaries as ISO date strings (YYYY-MM-DD)
-    const now     = new Date();
-    const toStr   = (d: Date) => d.toISOString().slice(0, 10);
-    const todayStr = toStr(now);
-    const day7Str  = toStr(new Date(now.getTime() + 7  * 86_400_000));
-    const day30Str = toStr(new Date(now.getTime() + 30 * 86_400_000));
+    const now        = new Date();
+    const toStr      = (d: Date) => d.toISOString().slice(0, 10);
+    const todayStr   = toStr(now);
+    const horizonStr = toStr(new Date(now.getTime() + HORIZON_DAYS * 86_400_000));
 
-    // Fetch all batches expiring within 30 days (including already expired)
+    // Fetch batches expiring within horizon, joining per-product and category thresholds
     const { data, error } = await supabase
       .from('stock_batches')
-      .select('expiry_date, products(name)')
+      .select('expiry_date, products(name, expiry_critical_days, expiry_warning_days, categories(default_critical_days, default_warning_days))')
       .eq('branch_id', branchId)
       .gt('quantity', 0)
       .not('expiry_date', 'is', null)
-      .lte('expiry_date', day30Str)
+      .lte('expiry_date', horizonStr)
       .order('expiry_date', { ascending: true });
 
     if (error || !data) return 0;
 
-    type Row = { expiry_date: string; products: { name: string } | null };
+    type Row = {
+      expiry_date: string;
+      products: {
+        name: string;
+        expiry_critical_days: number | null;
+        expiry_warning_days:  number | null;
+        categories: { default_critical_days: number; default_warning_days: number } | null;
+      } | null;
+    };
 
     const expired: string[] = [];
     const urgent:  string[] = [];
@@ -49,12 +74,27 @@ export async function runExpiryCheck(branchId: string): Promise<number> {
 
     for (const row of data as Row[]) {
       const name = row.products?.name ?? '';
+
+      // Resolution order: product override → category default → hardcoded fallback
+      const criticalDays = row.products?.expiry_critical_days
+        ?? row.products?.categories?.default_critical_days
+        ?? 7;
+      const warningDays = row.products?.expiry_warning_days
+        ?? row.products?.categories?.default_warning_days
+        ?? 30;
+
       if (row.expiry_date < todayStr) {
         expired.push(name);
-      } else if (row.expiry_date < day7Str) {
-        urgent.push(name);
       } else {
-        warning.push(name);
+        const expiry  = new Date(row.expiry_date + 'T00:00:00');
+        const today   = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const daysLeft = Math.floor((expiry.getTime() - today.getTime()) / 86_400_000);
+        if (daysLeft <= criticalDays) {
+          urgent.push(name);
+        } else if (daysLeft <= warningDays) {
+          warning.push(name);
+        }
+        // beyond this product's warning window — skip
       }
     }
 
@@ -63,25 +103,11 @@ export async function runExpiryCheck(branchId: string): Promise<number> {
       names.slice(0, 3).join('، ') + (names.length > 3 ? ` +${names.length - 3}` : '');
 
     if (expired.length)
-      showBrowserNotification(
-        `🔴 ${expired.length} منتج منتهي الصلاحية`,
-        fmt(expired),
-        '/dashboard/reports',
-      );
-
+      showBrowserNotification(msg.expired(expired.length), fmt(expired), '/dashboard/reports');
     if (urgent.length)
-      showBrowserNotification(
-        `🟠 ${urgent.length} منتج ينتهي خلال 7 أيام`,
-        fmt(urgent),
-        '/dashboard/reports',
-      );
-
+      showBrowserNotification(msg.urgent(urgent.length), fmt(urgent), '/dashboard/reports');
     if (warning.length)
-      showBrowserNotification(
-        `🟡 ${warning.length} منتج ينتهي خلال 30 يوماً`,
-        fmt(warning),
-        '/dashboard/reports',
-      );
+      showBrowserNotification(msg.warning(warning.length), fmt(warning), '/dashboard/reports');
 
     // Mark check done — prevents re-run for the next 6 hours
     if (typeof window !== 'undefined') localStorage.setItem(STORAGE_KEY, Date.now().toString());
@@ -101,7 +127,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
   return perm === 'granted';
 }
 
-// ─── Show browser notification (also used by realtime.ts) ─────
+// ─── Show browser notification (also used by realtime.ts and expiry-alert.tsx) ─────
 export function showBrowserNotification(title: string, body: string, url = '/') {
   if (typeof window === 'undefined') return;
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;

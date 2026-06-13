@@ -36,6 +36,8 @@ interface Product {
   low_stock_threshold: number;
   is_active: boolean;
   stock_total: number;
+  expiry_critical_days: number | null;
+  expiry_warning_days: number | null;
 }
 
 interface Props {

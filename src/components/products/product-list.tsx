@@ -22,6 +22,8 @@ import { ProductForm } from './product-form';
 interface Category {
   id: string;
   name: string;
+  default_critical_days?: number;
+  default_warning_days?: number;
 }
 
 interface Product {
@@ -37,6 +39,8 @@ interface Product {
   low_stock_threshold: number;
   is_active: boolean;
   stock_total: number;
+  expiry_critical_days: number | null;
+  expiry_warning_days: number | null;
 }
 
 interface Props {

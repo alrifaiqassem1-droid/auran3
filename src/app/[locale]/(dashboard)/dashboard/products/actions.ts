@@ -42,7 +42,7 @@ export async function createProduct(
     return { ok: false, error: 'لا تملك الصلاحية لإضافة منتجات' };
   }
 
-  const { name, barcode, unit, category_id, cost_price, sell_price, vat_inclusive, low_stock_threshold, is_active } = parsed.data;
+  const { name, barcode, unit, category_id, cost_price, sell_price, vat_inclusive, low_stock_threshold, is_active, expiry_critical_days, expiry_warning_days } = parsed.data;
 
   const { data, error } = await supabase
     .from('products')
@@ -56,6 +56,8 @@ export async function createProduct(
       vat_inclusive,
       low_stock_threshold,
       is_active,
+      expiry_critical_days: expiry_critical_days ?? null,
+      expiry_warning_days:  expiry_warning_days  ?? null,
       tenant_id: tenantId,
     })
     .select('id')
@@ -87,7 +89,7 @@ export async function updateProduct(
     return { ok: false, error: 'لا تملك الصلاحية لتعديل المنتجات' };
   }
 
-  const { name, barcode, unit, category_id, cost_price, sell_price, vat_inclusive, low_stock_threshold, is_active } = parsed.data;
+  const { name, barcode, unit, category_id, cost_price, sell_price, vat_inclusive, low_stock_threshold, is_active, expiry_critical_days, expiry_warning_days } = parsed.data;
 
   const { error } = await supabase
     .from('products')
@@ -101,6 +103,8 @@ export async function updateProduct(
       vat_inclusive,
       low_stock_threshold,
       is_active,
+      expiry_critical_days: expiry_critical_days ?? null,
+      expiry_warning_days:  expiry_warning_days  ?? null,
     })
     .eq('id', id)
     .eq('tenant_id', tenantId);

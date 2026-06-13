@@ -187,7 +187,10 @@
     "movement_sale": "مبيعات",
     "movement_damage": "تالف",
     "movement_adjustment": "تعديل",
-    "movement_count": "جرد"
+    "movement_count": "جرد",
+    "expiryCriticalDays": "تنبيه حرج (أيام)",
+    "expiryWarningDays": "تنبيه تحذيري (أيام)",
+    "expiryThresholdDefault": "من الفئة"
   },
   "Receiving": {
     "pageTitle": "استلام البضاعة",

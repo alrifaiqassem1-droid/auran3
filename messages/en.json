@@ -187,7 +187,10 @@
     "movement_sale": "Sale",
     "movement_damage": "Damage",
     "movement_adjustment": "Adjustment",
-    "movement_count": "Inventory"
+    "movement_count": "Inventory",
+    "expiryCriticalDays": "Critical alert (days)",
+    "expiryWarningDays": "Warning alert (days)",
+    "expiryThresholdDefault": "from category"
   },
   "Receiving": {
     "pageTitle": "Goods Receiving",

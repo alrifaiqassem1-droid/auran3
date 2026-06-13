@@ -26,13 +26,14 @@ async function ProductsData() {
         id, name, barcode, unit, category_id,
         categories(id, name),
         cost_price, sell_price, vat_inclusive,
-        low_stock_threshold, is_active
+        low_stock_threshold, is_active,
+        expiry_critical_days, expiry_warning_days
       `)
       .eq('tenant_id', tenantId)
       .order('name', { ascending: true }),
     supabase
       .from('categories')
-      .select('id, name')
+      .select('id, name, default_critical_days, default_warning_days')
       .eq('tenant_id', tenantId)
       .order('name', { ascending: true }),
   ]);

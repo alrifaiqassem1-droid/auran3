@@ -32,9 +32,10 @@ export default async function ProductDetailPage({ params }: Props) {
     .from('products')
     .select(`
       id, name, barcode, unit, category_id,
-      categories(id, name),
+      categories(id, name, default_critical_days, default_warning_days),
       cost_price, sell_price, vat_inclusive,
-      low_stock_threshold, is_active, created_at
+      low_stock_threshold, is_active, created_at,
+      expiry_critical_days, expiry_warning_days
     `)
     .eq('id', id)
     .eq('tenant_id', tenantId)
@@ -62,9 +63,13 @@ export default async function ProductDetailPage({ params }: Props) {
   const isRtl = locale === 'ar';
   const BackIcon = isRtl ? ArrowRight : ArrowLeft;
 
+  type CategoryData = { id: string; name: string; default_critical_days: number; default_warning_days: number };
   const categoryData = Array.isArray(product.categories)
-    ? product.categories[0] ?? null
-    : (product.categories as { id: string; name: string } | null);
+    ? (product.categories[0] ?? null) as CategoryData | null
+    : (product.categories as CategoryData | null);
+
+  const effectiveCritical = product.expiry_critical_days ?? categoryData?.default_critical_days ?? 7;
+  const effectiveWarning  = product.expiry_warning_days  ?? categoryData?.default_warning_days  ?? 30;
 
   return (
     <div className="container max-w-3xl py-6 px-4">
@@ -126,6 +131,19 @@ export default async function ProductDetailPage({ params }: Props) {
                 value={String(product.low_stock_threshold)}
                 mono
               />
+            </div>
+            <div className="border-t border-border/50 pt-3 space-y-1">
+              <InfoRow
+                label={t('expiryCriticalDays')}
+                value={`${effectiveCritical}${product.expiry_critical_days == null ? ' ★' : ''}`}
+                mono
+              />
+              <InfoRow
+                label={t('expiryWarningDays')}
+                value={`${effectiveWarning}${product.expiry_warning_days == null ? ' ★' : ''}`}
+                mono
+              />
+              <p className="text-[11px] text-muted-foreground">★ {t('expiryThresholdDefault')}</p>
             </div>
           </div>
         </TabsContent>

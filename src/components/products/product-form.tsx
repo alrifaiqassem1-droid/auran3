@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useTransition } from 'react';
-import { useForm, type Resolver } from 'react-hook-form';
+import { useForm, useWatch, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
@@ -46,6 +46,8 @@ import { CategorySelect } from './category-select';
 interface Category {
   id: string;
   name: string;
+  default_critical_days?: number;
+  default_warning_days?: number;
 }
 
 interface Product {
@@ -59,6 +61,8 @@ interface Product {
   vat_inclusive: boolean;
   low_stock_threshold: number;
   is_active: boolean;
+  expiry_critical_days: number | null;
+  expiry_warning_days: number | null;
 }
 
 interface Props {
@@ -86,6 +90,8 @@ export function ProductForm({ open, onOpenChange, product, categories, prefillBa
       vat_inclusive: true,
       low_stock_threshold: 0,
       is_active: true,
+      expiry_critical_days: null,
+      expiry_warning_days: null,
     },
   });
 
@@ -101,6 +107,8 @@ export function ProductForm({ open, onOpenChange, product, categories, prefillBa
         vat_inclusive: product.vat_inclusive,
         low_stock_threshold: product.low_stock_threshold,
         is_active: product.is_active,
+        expiry_critical_days: product.expiry_critical_days ?? null,
+        expiry_warning_days: product.expiry_warning_days ?? null,
       });
     } else if (open) {
       form.reset({
@@ -113,9 +121,16 @@ export function ProductForm({ open, onOpenChange, product, categories, prefillBa
         vat_inclusive: true,
         low_stock_threshold: 0,
         is_active: true,
+        expiry_critical_days: null,
+        expiry_warning_days: null,
       });
     }
   }, [product, open, prefillBarcode, form]);
+
+  const watchedCategoryId = useWatch({ control: form.control, name: 'category_id' });
+  const selectedCategory = categories.find((c) => c.id === watchedCategoryId);
+  const defaultCritical = selectedCategory?.default_critical_days ?? 7;
+  const defaultWarning  = selectedCategory?.default_warning_days  ?? 30;
 
   function onSubmit(values: ProductFormValues) {
     startTransition(async () => {
@@ -231,6 +246,55 @@ export function ProductForm({ open, onOpenChange, product, categories, prefillBa
               </FormItem>
             )}
           />
+
+          <div className="grid grid-cols-2 gap-3">
+            <FormField
+              control={form.control}
+              name="expiry_critical_days"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('expiryCriticalDays')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min="1"
+                      step="1"
+                      inputMode="numeric"
+                      placeholder={String(defaultCritical)}
+                      value={field.value ?? ''}
+                      onChange={(e) =>
+                        field.onChange(e.target.value === '' ? null : parseInt(e.target.value, 10) || null)
+                      }
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="expiry_warning_days"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('expiryWarningDays')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min="1"
+                      step="1"
+                      inputMode="numeric"
+                      placeholder={String(defaultWarning)}
+                      value={field.value ?? ''}
+                      onChange={(e) =>
+                        field.onChange(e.target.value === '' ? null : parseInt(e.target.value, 10) || null)
+                      }
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
 
           <FormField
             control={form.control}

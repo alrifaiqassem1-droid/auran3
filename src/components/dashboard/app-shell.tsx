@@ -1,5 +1,6 @@
 'use client';
 import { type ReactNode, useEffect } from 'react';
+import { useLocale } from 'next-intl';
 import { usePathname } from '@/i18n/navigation';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { TopBar } from './top-bar';
@@ -25,6 +26,7 @@ function ShellInner({ user, memberships, children }: Props) {
   const reduced  = useReducedMotion();
   const role: UserRole = (memberships[0]?.role ?? 'staff') as UserRole;
   const { activeBranchId } = useActiveBranch();
+  const locale = useLocale();
 
   useSessionTimeout();
 
@@ -48,8 +50,8 @@ function ShellInner({ user, memberships, children }: Props) {
     const msUntil6am = target.getTime() - now.getTime();
 
     // Run immediately if due, also schedule for 6 AM
-    runExpiryCheck(activeBranchId).catch(() => {});
-    const timer = setTimeout(() => runExpiryCheck(activeBranchId).catch(() => {}), msUntil6am);
+    runExpiryCheck(activeBranchId, locale).catch(() => {});
+    const timer = setTimeout(() => runExpiryCheck(activeBranchId, locale).catch(() => {}), msUntil6am);
     return () => clearTimeout(timer);
   }, [activeBranchId]);
 

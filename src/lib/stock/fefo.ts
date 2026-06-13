@@ -100,6 +100,8 @@ export type ExpiryStatus = 'expired' | 'critical' | 'warning' | 'safe' | 'none';
  */
 export function expiryStatus(
   expiryDate: string | null,
+  criticalDays = 7,
+  warningDays = 30,
   now: Date = new Date(),
 ): ExpiryStatus {
   if (!expiryDate) return 'none';
@@ -107,8 +109,8 @@ export function expiryStatus(
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const days = Math.floor((expiry.getTime() - today.getTime()) / 86_400_000);
   if (days < 0) return 'expired';
-  if (days <= 7) return 'critical';
-  if (days <= 30) return 'warning';
+  if (days <= criticalDays) return 'critical';
+  if (days <= warningDays) return 'warning';
   return 'safe';
 }
 
