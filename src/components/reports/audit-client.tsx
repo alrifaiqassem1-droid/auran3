@@ -67,13 +67,13 @@ export function AuditClient({ initialEntries }: { initialEntries: AuditEntry[] }
 
   function applyFilters() {
     startTransition(async () => {
-      const { entries: fresh } = await getAuditLog({
+      const result = await getAuditLog({
         action:   filterAction || undefined,
         entity:   filterEntity || undefined,
         dateFrom: filterDateFrom || undefined,
         dateTo:   filterDateTo || undefined,
       }, 500);
-      setEntries(fresh);
+      if (result.ok) setEntries(result.entries);
     });
   }
 

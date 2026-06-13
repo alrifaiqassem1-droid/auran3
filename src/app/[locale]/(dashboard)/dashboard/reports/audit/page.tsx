@@ -24,7 +24,8 @@ export default async function AuditPage() {
 
   if (membership?.role !== 'owner') redirect('/dashboard');
 
-  const { entries } = await getAuditLog({}, 200);
+  const result = await getAuditLog({}, 200);
+  const entries = result.ok ? result.entries : [];
 
   return (
     <div className="container max-w-4xl px-4 py-6">

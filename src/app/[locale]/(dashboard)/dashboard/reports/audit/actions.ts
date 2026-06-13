@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { getSession } from '@/lib/auth/get-session';
 
 export interface AuditEntry {
   id:         string;
@@ -20,22 +21,22 @@ export interface AuditFilters {
   dateTo?:    string;
 }
 
+type AuditLogResult =
+  | { ok: false; error: string }
+  | { ok: true; entries: AuditEntry[]; isOwner: boolean };
+
 export async function getAuditLog(
   filters: AuditFilters = {},
   limit = 100,
-): Promise<{ entries: AuditEntry[]; isOwner: boolean }> {
+): Promise<AuditLogResult> {
+  const { user, memberships } = await getSession();
+  if (!user) return { ok: false, error: 'unauthorized' };
+
+  const membership = memberships[0];
+  if (membership?.role !== 'owner') return { ok: false, error: 'unauthorized' };
+
   const supabase = await createServerClient();
-  const { data: tenantIds } = await supabase.rpc('auth_tenant_ids');
-  const tenantId: string | undefined = tenantIds?.[0];
-  if (!tenantId) return { entries: [], isOwner: false };
-
-  const { data: membership } = await supabase
-    .from('memberships')
-    .select('role')
-    .eq('tenant_id', tenantId)
-    .single();
-
-  const isOwner = membership?.role === 'owner';
+  const tenantId = membership.tenant_id;
 
   let query = supabase
     .from('audit_log')
@@ -51,7 +52,8 @@ export async function getAuditLog(
 
   const { data } = await query;
   return {
+    ok: true,
     entries: (data ?? []) as AuditEntry[],
-    isOwner,
+    isOwner: true,
   };
 }
