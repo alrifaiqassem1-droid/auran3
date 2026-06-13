@@ -5,21 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Download, Filter, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { getAuditLog, type AuditEntry } from '@/app/[locale]/(dashboard)/dashboard/reports/audit/actions';
-
-const ACTION_LABELS: Record<string, string> = {
-  create: 'إنشاء', update: 'تعديل', delete: 'حذف',
-  receive: 'استلام', damage: 'تالف', count_close: 'إغلاق جرد',
-  pos_import: 'استيراد POS', role_change: 'تغيير دور',
-  invite: 'دعوة', remove_staff: 'إزالة موظف',
-};
-
-const ENTITY_LABELS: Record<string, string> = {
-  product: 'منتج', receipt: 'استلام', damage: 'تالف',
-  inventory_count: 'جرد', pos_import: 'POS', membership: 'موظف',
-  custom_role: 'دور مخصص',
-};
 
 const ACTION_COLORS: Record<string, string> = {
   create: 'bg-emerald-500/10 text-emerald-600',
@@ -44,6 +30,34 @@ function formatDate(iso: string) {
 
 export function AuditClient({ initialEntries }: { initialEntries: AuditEntry[] }) {
   const t = useTranslations('Audit');
+
+  const ACTION_LABELS: Record<string, string> = {
+    create:       t('action_create'),
+    update:       t('action_update'),
+    delete:       t('action_delete'),
+    receive:      t('action_receive'),
+    damage:       t('action_damage'),
+    count_close:  t('action_count_close'),
+    pos_import:   t('action_pos_import'),
+    role_change:  t('action_role_change'),
+    invite:       t('action_invite'),
+    remove_staff: t('action_remove_staff'),
+  };
+
+  const ENTITY_LABELS: Record<string, string> = {
+    inventory_counts: t('section_inventory_counts'),
+    inventory_count:  t('section_inventory_counts'),
+    products:         t('section_products'),
+    product:          t('section_products'),
+    damaged_products: t('section_damaged_products'),
+    damage:           t('section_damaged_products'),
+    goods_receipts:   t('section_goods_receipts'),
+    receipt:          t('section_goods_receipts'),
+    pos_import:       t('section_pos_import'),
+    membership:       t('section_membership'),
+    custom_role:      t('section_custom_role'),
+  };
+
   const [entries, setEntries] = useState(initialEntries);
   const [filterAction, setFilterAction] = useState('');
   const [filterEntity, setFilterEntity] = useState('');
@@ -64,7 +78,7 @@ export function AuditClient({ initialEntries }: { initialEntries: AuditEntry[] }
   }
 
   function exportCsv() {
-    const header = ['التاريخ', 'الموظف', 'العملية', 'القسم', 'المعرف', 'التفاصيل'].join(',');
+    const header = [t('colDate'), t('colUser'), t('colAction'), t('colEntity'), 'ID', t('colDetails')].join(',');
     const rows = entries.map((e) =>
       [
         formatDate(e.created_at),
@@ -111,22 +125,22 @@ export function AuditClient({ initialEntries }: { initialEntries: AuditEntry[] }
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
           <select value={filterAction} onChange={(e) => setFilterAction(e.target.value)}
             className="h-9 rounded-lg border border-border bg-background px-2 text-xs">
-            <option value="">كل العمليات</option>
+            <option value="">{t('allActions')}</option>
             {allActions.map((a) => <option key={a} value={a}>{ACTION_LABELS[a] ?? a}</option>)}
           </select>
           <select value={filterEntity} onChange={(e) => setFilterEntity(e.target.value)}
             className="h-9 rounded-lg border border-border bg-background px-2 text-xs">
-            <option value="">كل الأقسام</option>
+            <option value="">{t('allSections')}</option>
             {allEntities.map((e) => <option key={e} value={e}>{ENTITY_LABELS[e] ?? e}</option>)}
           </select>
           <Input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)}
-            className="h-9 text-xs" dir="ltr" placeholder="من" />
+            className="h-9 text-xs" dir="ltr" placeholder={t('dateFrom')} />
           <Input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)}
-            className="h-9 text-xs" dir="ltr" placeholder="إلى" />
+            className="h-9 text-xs" dir="ltr" placeholder={t('dateTo')} />
         </div>
         <Button onClick={applyFilters} disabled={pending} size="sm" className="mt-3 h-9 gap-1.5 rounded-xl">
           {pending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Filter className="h-3.5 w-3.5" />}
-          تطبيق الفلتر
+          {t('applyFilter')}
         </Button>
       </div>
 
@@ -172,7 +186,7 @@ export function AuditClient({ initialEntries }: { initialEntries: AuditEntry[] }
             </tbody>
           </table>
           <div className="border-t border-border/40 px-4 py-2 text-xs text-muted-foreground">
-            {entries.length} عملية
+            {t('entriesCount', { n: entries.length })}
           </div>
         </div>
       )}
