@@ -346,13 +346,16 @@ export async function acceptInvitation(token: string): Promise<{ ok: boolean; er
 
   const { data: inv } = await supabase
     .from('invitations')
-    .select('id, tenant_id, custom_role_id, default_role, expires_at')
+    .select('id, email, tenant_id, custom_role_id, default_role, expires_at')
     .eq('token', token)
     .is('accepted_at', null)
     .single();
 
   if (!inv) return { ok: false, error: 'الدعوة غير صالحة أو منتهية' };
   if (new Date(inv.expires_at) < new Date()) return { ok: false, error: 'انتهت صلاحية الدعوة' };
+  if (inv.email.toLowerCase().trim() !== user.email?.toLowerCase().trim()) {
+    return { ok: false, error: 'هذه الدعوة ليست لك' };
+  }
 
   const { error: mErr } = await supabase
     .from('memberships')
