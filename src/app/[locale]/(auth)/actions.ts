@@ -61,7 +61,9 @@ export async function signIn(input: LoginInput) {
   redirect('/dashboard');
 }
 
-export async function signUp(input: SignupInput, captchaToken?: string) {
+export async function signUp(input: SignupInput, captchaToken: string) {
+  if (!captchaToken?.trim()) return { ok: false, error: 'genericError' };
+
   const parsed = signupSchema.safeParse(input);
   if (!parsed.success) {
     const msg = parsed.error.issues[0]?.message;
@@ -81,7 +83,7 @@ export async function signUp(input: SignupInput, captchaToken?: string) {
     email: parsed.data.email,
     password: parsed.data.password,
     options: {
-      ...(captchaToken ? { captchaToken } : {}),
+      captchaToken,
       data: { full_name: parsed.data.fullName, company_name: parsed.data.companyName },
       emailRedirectTo: `${SITE_URL}/auth/confirm`,
     },

@@ -32,7 +32,7 @@ export default function SignupPage() {
 
   async function onSubmit(data: SignupInput) {
     setLoading(true);
-    const result = await signUp(data, captchaToken ?? undefined);
+    const result = await signUp(data, captchaToken ?? '');
     setLoading(false);
 
     if (result?.ok === false) {

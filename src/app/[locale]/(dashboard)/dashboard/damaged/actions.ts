@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { getBranchContext } from '@/lib/auth/branch-context';
 import type { BatchLike } from '@/lib/stock/fefo';
 
 export interface ProductOption {
@@ -29,17 +30,16 @@ export async function getBatchesForProduct(
   productId: string,
   branchId: string,
 ): Promise<BatchLike[]> {
+  const ctx = await getBranchContext();
+  if (!ctx || !ctx.allowedBranchIds.includes(branchId)) return [];
   const supabase = await createServerClient();
-  const { data: tenantIds } = await supabase.rpc('auth_tenant_ids');
-  const tenantId: string | undefined = tenantIds?.[0];
-  if (!tenantId) return [];
 
   const { data } = await supabase
     .from('stock_batches')
     .select('id, quantity, expiry_date, received_at')
     .eq('product_id', productId)
     .eq('branch_id', branchId)
-    .eq('tenant_id', tenantId)
+    .eq('tenant_id', ctx.tenantId)
     .gt('quantity', 0)
     .order('expiry_date', { ascending: true, nullsFirst: false })
     .order('received_at', { ascending: true });

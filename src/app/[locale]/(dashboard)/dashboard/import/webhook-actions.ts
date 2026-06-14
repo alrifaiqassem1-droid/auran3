@@ -5,6 +5,7 @@
 // run _guard(owner/manager) internally, so no extra role check is needed here.
 
 import { createClient } from '@/lib/supabase/server';
+import { getBranchContext } from '@/lib/auth/branch-context';
 
 export interface WebhookListItem {
   id: string;
@@ -20,6 +21,8 @@ type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 // List endpoints for a branch (no secret — only prefix + status).
 export async function listWebhooks(branchId: string): Promise<Result<WebhookListItem[]>> {
   if (!branchId) return { ok: false, error: 'NO_BRANCH' };
+  const ctx = await getBranchContext();
+  if (!ctx || !ctx.allowedBranchIds.includes(branchId)) return { ok: false, error: 'UNAUTHORIZED' };
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('webhook_endpoints')
@@ -37,6 +40,8 @@ export async function createWebhook(
   label: string,
 ): Promise<Result<{ endpoint_id: string; secret: string }>> {
   if (!branchId) return { ok: false, error: 'NO_BRANCH' };
+  const ctx = await getBranchContext();
+  if (!ctx || !ctx.allowedBranchIds.includes(branchId)) return { ok: false, error: 'UNAUTHORIZED' };
   const trimmed = (label ?? '').trim();
   if (!trimmed) return { ok: false, error: 'NO_LABEL' };
 

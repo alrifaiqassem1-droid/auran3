@@ -74,18 +74,18 @@ export async function getCountSessions(): Promise<CountSessionSummary[]> {
 export async function getCountSessionDetails(
   countId: string,
 ): Promise<CountSessionDetail | null> {
-  const supabase = await createServerClient();
-  const { data: tenantIds } = await supabase.rpc('auth_tenant_ids');
-  const tenantId: string | undefined = tenantIds?.[0];
-  if (!tenantId) return null;
+  const ctx = await getBranchContext();
+  if (!ctx) return null;
 
+  const supabase = await createServerClient();
   const { data: session } = await supabase
     .from('inventory_counts')
     .select('id, status, created_at, closed_at, branch_id')
     .eq('id', countId)
-    .eq('tenant_id', tenantId)
+    .eq('tenant_id', ctx.tenantId)
     .single();
   if (!session) return null;
+  if (!ctx.allowedBranchIds.includes(session.branch_id)) return null;
 
   const { data: items } = await supabase
     .from('inventory_count_items')
@@ -144,9 +144,20 @@ export async function upsertCountItem(input: {
     return { ok: false, error: parsed.error.issues[0]?.message };
   }
 
+  const ctx = await getBranchContext();
+  if (!ctx) return { ok: false, error: 'جلسة غير صالحة' };
+
   const supabase = await createServerClient();
-  const { data: tenantIds } = await supabase.rpc('auth_tenant_ids');
-  if (!tenantIds?.[0]) return { ok: false, error: 'جلسة غير صالحة' };
+  const { data: countRow } = await supabase
+    .from('inventory_counts')
+    .select('branch_id')
+    .eq('id', parsed.data.count_id)
+    .eq('tenant_id', ctx.tenantId)
+    .single();
+  if (!countRow || !ctx.allowedBranchIds.includes(countRow.branch_id)) {
+    return { ok: false, error: 'غير مصرح' };
+  }
+
   const { data, error } = await rpcUpsertCountItem(supabase, {
     count_id:   parsed.data.count_id,
     product_id: parsed.data.product_id,

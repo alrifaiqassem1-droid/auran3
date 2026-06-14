@@ -6,6 +6,8 @@ import { logAudit } from '@/lib/audit';
 import { revalidatePath } from 'next/cache';
 import type { Json } from '@/types/database.types';
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
 // ─── Types ────────────────────────────────────────────────────
 
 export interface RolePermissions {
@@ -294,7 +296,7 @@ export async function sendInvitation(
   email: string,
   defaultRole: 'manager' | 'staff',
   customRoleId: string | null,
-): Promise<{ ok: boolean; token?: string; error?: string }> {
+): Promise<{ ok: boolean; inviteUrl?: string; error?: string }> {
   const ctx = await getOwnerContext();
   if (!ctx) return { ok: false, error: 'غير مخوّل' };
 
@@ -321,7 +323,7 @@ export async function sendInvitation(
 
   await logAudit({ tenant_id: ctx.tenantId, action: 'invite', entity: 'membership', details: { email, defaultRole } });
   revalidatePath('/dashboard/settings/roles');
-  return { ok: true, token: data.token };
+  return { ok: true, inviteUrl: `${SITE_URL}/join?token=${data.token}` };
 }
 
 export async function cancelInvitation(invitationId: string): Promise<{ ok: boolean; error?: string }> {

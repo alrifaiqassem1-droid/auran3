@@ -170,9 +170,8 @@ function InviteDialog({
     if (!email.trim()) { toast.error(t('emailRequired')); return; }
     startTransition(async () => {
       const res = await sendInvitation(email, defaultRole, customRoleId);
-      if (res.ok && res.token) {
-        const link = `${window.location.origin}/join?token=${res.token}`;
-        setInviteLink(link);
+      if (res.ok && res.inviteUrl) {
+        setInviteLink(res.inviteUrl);
         toast.success(t('inviteCreated'));
       } else {
         toast.error(res.error ?? t('createFailed'));

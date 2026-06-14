@@ -43,7 +43,7 @@ export async function getAuditLog(
     .select('id, user_name, action, entity, entity_id, details, created_at')
     .eq('tenant_id', tenantId)
     .order('created_at', { ascending: false })
-    .limit(limit);
+    .limit(Math.min(limit ?? 100, 500));
 
   if (filters.action)   query = query.eq('action', filters.action);
   if (filters.entity)   query = query.eq('entity', filters.entity);

@@ -148,7 +148,7 @@ export default function OnboardingPage() {
 
     const { error: pwError } = await supabase.auth.updateUser({ password: data.password });
     if (pwError) {
-      console.error('[onboarding] updateUser error:', pwError.message);
+      console.error('[onboarding] updateUser failed');
       toast.error(t.genericError);
       setLoading(false);
       return;
@@ -165,7 +165,7 @@ export default function OnboardingPage() {
     });
 
     if (rpcError) {
-      console.error('[onboarding] bootstrap_tenant error:', rpcError.message);
+      console.error('[onboarding] bootstrap_tenant failed');
       // Log but don't block — treat as success; tenant creation may retry
     }
 

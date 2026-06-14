@@ -34,7 +34,7 @@ export async function GET(request: Request) {
   const { data, error } = await supabase.auth.verifyOtp({ type, token_hash });
 
   if (error) {
-    console.error('[auth/confirm] verifyOtp error:', error.message, error);
+    console.error('[auth/confirm] verifyOtp failed:', error.status ?? error.code ?? 'unknown');
     return NextResponse.redirect(`${origin}/login?error=invalid_token`);
   }
 
@@ -54,10 +54,10 @@ export async function GET(request: Request) {
         });
         if (rpcError) {
           // Log but never block — tenant may already exist (link clicked twice)
-          console.error('[auth/confirm] bootstrap_tenant error:', rpcError.message, rpcError);
+          console.error('[auth/confirm] bootstrap_tenant failed:', rpcError.code ?? 'unknown');
         }
-      } catch (err) {
-        console.error('[auth/confirm] bootstrap_tenant threw:', err);
+      } catch {
+        console.error('[auth/confirm] bootstrap_tenant threw');
       }
     }
   }
