@@ -22,7 +22,8 @@ export async function checkRateLimit(
     const result = data as { blocked: boolean; retry_after_min: number };
     if (result.blocked) return { blocked: true, retryAfterMin: result.retry_after_min };
     return { blocked: false };
-  } catch {
+  } catch (error) {
+    console.error('[rate-limit] check failed, failing open:', (error as { code?: string })?.code ?? 'unknown');
     return { blocked: false }; // fail open — never break auth flow
   }
 }

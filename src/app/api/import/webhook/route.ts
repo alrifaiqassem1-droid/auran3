@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { checkRateLimit, recordAttempt } from '@/lib/auth/rate-limit';
+import { getClientInfo } from '@/lib/auth/get-client-info';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -30,6 +32,13 @@ function readSecret(req: NextRequest): string | null {
 }
 
 export async function POST(req: NextRequest) {
+  const { ip } = await getClientInfo();
+  await recordAttempt(ip, 'webhook_import');
+  const limit = await checkRateLimit(ip, 'webhook_import', 30, 1);
+  if (limit.blocked) {
+    return NextResponse.json({ error: 'AURAN_RATE_LIMITED' }, { status: 429 });
+  }
+
   const secret = readSecret(req);
   if (!secret) {
     return NextResponse.json(
