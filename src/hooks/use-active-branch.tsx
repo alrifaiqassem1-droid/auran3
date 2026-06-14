@@ -2,10 +2,13 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { Membership } from '@/lib/auth/get-session';
 
+export type Branch = { id: string; name: string; is_default: boolean };
+
 type ActiveBranchCtx = {
   activeBranchId: string | null;
   activeMembership: Membership | null;
   memberships: Membership[];
+  branches: Branch[];
   setActiveBranch: (id: string) => void;
 };
 
@@ -13,6 +16,7 @@ const Ctx = createContext<ActiveBranchCtx>({
   activeBranchId: null,
   activeMembership: null,
   memberships: [],
+  branches: [],
   setActiveBranch: () => {},
 });
 
@@ -31,26 +35,31 @@ function writeBranchCookie(id: string | null) {
 
 export function ActiveBranchProvider({
   memberships,
+  branches,
+  initialActiveBranchId,
   children,
 }: {
   memberships: Membership[];
+  branches: Branch[];
+  initialActiveBranchId: string | null;
   children: ReactNode;
 }) {
+  // Initialise from the server-resolved value (cookie) so first render is correct.
   const [activeBranchId, setActiveBranchIdState] = useState<string | null>(
-    memberships[0]?.branch_id ?? null
+    initialActiveBranchId ?? memberships[0]?.branch_id ?? null
   );
 
-  // On mount: read localStorage, validate against memberships, then sync cookie
-  // so the server cookie and client state always agree after hydration.
+  // On mount: validate localStorage against the real branch list, then sync cookie.
+  // Validates against `branches` (not memberships) so owners with branch_id=null work.
   useEffect(() => {
     try {
       const stored = localStorage.getItem(COOKIE_NAME);
-      const valid = memberships.find(m => m.branch_id === stored);
-      const resolved = valid?.branch_id ?? memberships[0]?.branch_id ?? null;
-      if (valid?.branch_id) setActiveBranchIdState(valid.branch_id);
+      const validBranchId = branches.find(b => b.id === stored)?.id ?? null;
+      const resolved = validBranchId ?? initialActiveBranchId ?? null;
+      if (validBranchId) setActiveBranchIdState(validBranchId);
       writeBranchCookie(resolved);
     } catch { /* localStorage blocked (private/WebView) */ }
-  }, [memberships]);
+  }, [memberships]); // memberships ref changes on each server re-render — correct timing
 
   function setActiveBranch(id: string) {
     setActiveBranchIdState(id);
@@ -62,7 +71,7 @@ export function ActiveBranchProvider({
     memberships.find(m => m.branch_id === activeBranchId) ?? memberships[0] ?? null;
 
   return (
-    <Ctx.Provider value={{ activeBranchId, activeMembership, memberships, setActiveBranch }}>
+    <Ctx.Provider value={{ activeBranchId, activeMembership, memberships, branches, setActiveBranch }}>
       {children}
     </Ctx.Provider>
   );

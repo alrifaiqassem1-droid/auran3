@@ -6,7 +6,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { TopBar } from './top-bar';
 import { BottomNav } from './bottom-nav';
 import { SideNav } from './side-nav';
-import { ActiveBranchProvider, useActiveBranch } from '@/hooks/use-active-branch';
+import { ActiveBranchProvider, useActiveBranch, type Branch } from '@/hooks/use-active-branch';
 import { useSessionTimeout } from '@/hooks/use-session-timeout';
 import { OfflineBanner } from '@/components/system/offline-banner';
 import { registerAutoFlush } from '@/lib/offline/queue';
@@ -15,13 +15,18 @@ import { ExpiryAlert } from '@/components/system/expiry-alert';
 import type { Membership } from '@/lib/auth/get-session';
 import type { UserRole } from '@/types/db';
 
-type Props = {
+type ShellInnerProps = {
   user: { name: string; id: string; email: string };
   memberships: Membership[];
   children: ReactNode;
 };
 
-function ShellInner({ user, memberships, children }: Props) {
+type Props = ShellInnerProps & {
+  branches: Branch[];
+  activeBranchId: string | null;
+};
+
+function ShellInner({ user, memberships, children }: ShellInnerProps) {
   const pathname = usePathname();
   const reduced  = useReducedMotion();
   const role: UserRole = (memberships[0]?.role ?? 'staff') as UserRole;
@@ -82,10 +87,14 @@ function ShellInner({ user, memberships, children }: Props) {
   );
 }
 
-export function AppShell(props: Props) {
+export function AppShell({ branches, activeBranchId, ...rest }: Props) {
   return (
-    <ActiveBranchProvider memberships={props.memberships}>
-      <ShellInner {...props} />
+    <ActiveBranchProvider
+      memberships={rest.memberships}
+      branches={branches}
+      initialActiveBranchId={activeBranchId}
+    >
+      <ShellInner {...rest} />
     </ActiveBranchProvider>
   );
 }

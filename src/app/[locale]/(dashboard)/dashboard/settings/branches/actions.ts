@@ -3,8 +3,25 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth/get-session';
+import { getBranchContext } from '@/lib/auth/branch-context';
 
 type ActionResult = { ok: true } | { ok: false; error: string };
+
+export type BranchSummary = { id: string; name: string; is_default: boolean };
+
+/** Returns all branches the current user is allowed to see, ordered default-first. */
+export async function getMyBranches(): Promise<BranchSummary[]> {
+  const ctx = await getBranchContext();
+  if (!ctx || !ctx.allowedBranchIds.length) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('branches')
+    .select('id, name, is_default')
+    .in('id', ctx.allowedBranchIds)
+    .order('is_default', { ascending: false })
+    .order('created_at', { ascending: true });
+  return (data ?? []) as BranchSummary[];
+}
 
 export type BranchRow = {
   id: string;
