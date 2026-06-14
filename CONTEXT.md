@@ -1,7 +1,7 @@
 # AURAN — Master Development Context
 
 > Read this file completely before starting any work.
-> Last updated: 2026-06-05 — reflects full codebase as-built.
+> Last updated: 2026-06-14 — security hardening + branch scoping + expiry thresholds.
 
 ---
 
@@ -123,6 +123,8 @@ Pending staff invites. Token is DB-generated UUID.
 | vat_inclusive | boolean | is sell_price VAT-inclusive? |
 | is_active | boolean | |
 | low_stock_threshold | numeric | for notifications |
+| expiry_critical_days | integer? | override category default_critical_days (null = use category) |
+| expiry_warning_days | integer? | override category default_warning_days (null = use category) |
 | created_at | timestamptz | |
 
 ### `categories`
@@ -131,6 +133,8 @@ Pending staff invites. Token is DB-generated UUID.
 | id | uuid PK | |
 | tenant_id | uuid FK→tenants | |
 | name | text | |
+| default_critical_days | integer | default 7 — expiry alert threshold (critical) |
+| default_warning_days | integer | default 30 — expiry alert threshold (warning) |
 | created_at | timestamptz | |
 
 ### `suppliers`
@@ -294,30 +298,41 @@ product_unit:      pcs | kg
 |---|---|
 | `bootstrap_tenant(p_company, p_full_name, p_user_id)` | Creates tenant + default branch + profile + owner membership |
 | `auth_tenant_ids()` | Returns current user's tenant IDs (used for RLS scope) |
+| `auth_branch_ids()` | Returns branch IDs accessible to the current user (owners/managers→all, staff→scoped branch). Used in SELECT RLS on operational tables. |
 | `has_role(p_roles[], p_tenant)` | Boolean role check |
-| `_guard(p_tenant uuid, p_roles user_role[])` | Raises exception if role check fails (used inside other RPCs) |
-| `receive_goods(p_payload jsonb)` | Atomic receipt: creates receipt + batches + movements |
-| `record_damage(p_payload jsonb)` | Atomic damage: deducts from FEFO batches + creates record |
-| `close_count(p_payload jsonb)` | Atomic stocktake close: applies adjustments |
-| `apply_pos_import(p_payload jsonb)` | Atomic POS import: deducts sold stock |
+| `_guard(p_tenant uuid, p_roles user_role[])` | Raises 42501 if role check fails (used inside other RPCs) |
+| `_guard_branch(p_branch uuid)` | Raises 42501 if branch is not in auth_branch_ids() — enforces branch scope on write RPCs |
+| `receive_goods(p_payload jsonb)` | Atomic receipt: creates receipt + batches + movements. Calls _guard + _guard_branch. |
+| `record_damage(p_payload jsonb)` | Atomic damage: deducts from FEFO batches + creates record. Calls _guard + _guard_branch. |
+| `close_count(p_payload jsonb)` | Atomic stocktake close: applies adjustments. Calls _guard + _guard_branch. |
+| `apply_pos_import(p_payload jsonb)` | Atomic POS import: deducts sold stock. Calls _guard + _guard_branch. |
+| `_apply_pos_import_core(p_tenant, p_branch, p_payload, p_actor)` | Shared FEFO deduction body used by both apply_pos_import and webhook_pos_import |
+| `generate_webhook_secret(p_branch, p_label)` | Creates webhook endpoint, returns (endpoint_id, secret). Owner/manager only. |
+| `revoke_webhook_endpoint(p_endpoint)` | Soft-disables a webhook endpoint. Owner/manager only. |
+| `webhook_pos_import(p_secret, p_payload)` | Authenticates via secret hash, derives tenant+branch, calls core. No user session required. |
 
 All four write RPCs use `processed_ops` for idempotency — replaying the same `client_op_id` returns the cached result without re-executing.
 
 ### Migration Files (supabase/migrations/)
 ```
-0001_init.sql             — base schema: tables, RLS, bootstrap_tenant
-0003_security.sql         — rate limiting, audit log, hCaptcha support
-0004_count.sql            — inventory_counts + items
-0005_pos.sql              — pos_imports + items
-0006_notifications.sql    — notifications table + triggers
-0007_roles.sql            — custom_roles + invitations tables
-0009_fix_audit_trigger.sql — audit trigger fix (to_jsonb pattern)
-0010_core_rpcs.sql        — atomic RPCs: receive_goods, record_damage, close_count, apply_pos_import
-0011_fix_audit_trigger.sql — follow-up audit trigger fix
-0012_goods_receipts_status.sql — goods_receipts status column
+0001_init.sql                      — base schema: tables, RLS, bootstrap_tenant
+0003_security.sql                  — rate limiting, audit log, hCaptcha support
+0004_count.sql                     — inventory_counts + items
+0005_pos.sql                       — pos_imports + items
+0006_notifications.sql             — notifications table + triggers
+0007_roles.sql                     — custom_roles + invitations tables
+0008_hardening.sql                 — search_path hardening, FORCE RLS, revoke anon grants ✅ APPLIED
+0009_fix_audit_trigger.sql         — audit trigger fix (to_jsonb pattern)
+0010_core_rpcs.sql                 — atomic RPCs: receive_goods, record_damage, close_count, apply_pos_import
+0011_fix_audit_trigger.sql         — follow-up audit trigger fix (safe status extraction)
+0012_goods_receipts_status.sql     — goods_receipts status column
+0013_webhook.sql                   — webhook_endpoints table + generate/revoke RPCs
+0014_webhook_core.sql              — _apply_pos_import_core + webhook_pos_import RPC + apply_pos_import rewrite
+0015_expiry_thresholds.sql         — per-product + per-category expiry alert threshold columns
+0016_security_branch_hardening.sql — branch scoping (auth_branch_ids, _guard_branch, SELECT RLS, invitations tightening)
 ```
 
-**Note:** `0008_hardening.sql` is referenced but NOT yet applied — it contains security hardening rules.
+All migrations from 0001–0016 have been applied to the live Supabase database via the SQL Editor.
 
 ---
 
@@ -405,13 +420,14 @@ interface RolePermissions {
 ```
 Custom roles are assigned via `memberships.custom_role_id` alongside the base `role`. The base role controls nav visibility; custom roles are for fine-grained UI control (future enforcement).
 
-### Permission check layers (6 total)
+### Permission check layers (7 total)
 1. **Middleware** (`src/middleware.ts`) — coarse: unauthenticated → `/login`; auth-only pages (login/signup) + authenticated → `/dashboard`
 2. **Dashboard layout** (`(dashboard)/layout.tsx`) — `getSession()` → `memberships.length === 0` → "No Permission" screen
 3. **Nav filtering** (`nav-config.ts`) — `navItems` has `roles?: UserRole[]`; filtered before rendering in SideNav/BottomNav
 4. **Page-level guard** (e.g. `settings/roles/page.tsx`) — server component checks `membership.role !== 'owner'` → `redirect('/dashboard')`
-5. **Server action guard** (`getOwnerContext()` in `roles/actions.ts`) — re-verifies owner role server-side on every mutation
-6. **DB functions** — `_guard(p_tenant, p_roles[])` raises exception inside RPCs if caller lacks required role
+5. **Server action guard** — `getOwnerContext()` / `getBranchContext()` re-verifies role + branch scope on every mutation. `ctx.allowedBranchIds.includes(branchId)` guards all branch-specific reads/writes.
+6. **DB tenant guard** — `_guard(p_tenant, p_roles[])` raises 42501 inside RPCs if caller lacks required role
+7. **DB branch guard** — `_guard_branch(p_branch)` raises 42501 inside write RPCs if branch not in `auth_branch_ids()`. SELECT RLS on 6 operational tables enforces same via `branch_id = any(auth_branch_ids())`.
 
 ---
 
@@ -425,14 +441,19 @@ Custom roles are assigned via `memberships.custom_role_id` alongside the base `r
 3. `sendInvitation(email, defaultRole, customRoleId)` server action:
    - Deletes any existing pending invite for that email
    - Inserts new row → DB generates `token` (UUID)
-   - Returns token to client
-4. Client constructs link: `${origin}/join?token=${token}` — copy to clipboard
+   - Returns `inviteUrl` (`${SITE_URL}/join?token=${token}`) — not the raw token
+4. Client shows full URL — copy to clipboard
 5. Employee opens link → `/join?token=xxx` page → `JoinClient` component
 6. `acceptInvitation(token)` server action:
    - Validates token exists + `accepted_at IS NULL` + not expired
+   - **Verifies `inv.email === user.email`** (IDOR fix — prevents one user accepting another's invite)
    - Creates `memberships` row (role + custom_role_id from invitation)
    - Marks `accepted_at = NOW()`
    - Employee lands on `/dashboard`
+
+**Invitations RLS (migration 0016):**
+- `invitations_owner_manage` — owner can CRUD invitations for their own tenant only
+- `invitations_read_for_acceptance` — invited user can SELECT their own invitation (email match), needed for the `/join` flow before they've joined the tenant
 
 ### Server actions (`settings/roles/actions.ts`)
 | Action | Gate | What it does |
@@ -516,6 +537,28 @@ else showError(res.error);
 - `BranchSwitcher` component in TopBar — updates active branch
 - Scanner pages use `href` (hard navigation) not `Link` to reinitialize camera on branch change
 
+### Branch-scoping system (security layer)
+Two-layer enforcement — mirrors each other exactly:
+
+**TypeScript (server-side, `lib/auth/branch-context.ts`):**
+- `getBranchContext()` — React `cache()`-wrapped, reads the `auran_active_branch` cookie.
+- Returns `{ activeBranchId, allowedBranchIds[], tenantId, role, canSwitchBranches }`.
+- `allowedBranchIds`: owners/managers → all tenant branches; staff → their single `membership.branch_id`.
+- All server actions that touch branch-specific data call `getBranchContext()` and check `ctx.allowedBranchIds.includes(branchId)` before proceeding.
+- The `Secure; SameSite=Lax` cookie can only be manipulated client-side — all DB access is re-validated via RLS anyway.
+
+**PostgreSQL (DB-side, migration 0016):**
+- `auth_branch_ids()` — mirrors the TypeScript logic. Owners/managers: all branches for their tenant. Staff: only `memberships.branch_id`.
+- `_guard_branch(p_branch)` — raises `AURAN_FORBIDDEN` (42501) if branch not in `auth_branch_ids()`.
+- SELECT RLS on the 6 operational tables (`stock_batches`, `stock_movements`, `goods_receipts`, `damaged_products`, `inventory_counts`, `pos_imports`) now includes `branch_id = any(auth_branch_ids())`.
+- The 4 write RPCs (`receive_goods`, `record_damage`, `close_count`, `apply_pos_import`) call `_guard_branch(v_branch)` after `_guard()`.
+
+**Branch management page (`settings/branches/actions.ts`):**
+- `getMyBranches()` — returns branches scoped to `allowedBranchIds` (uses `getBranchContext`).
+- `getBranches()` — full branch list for the tenant (owner/manager only page).
+- `createBranch`, `updateBranch` — owner/manager gated.
+- `setDefaultBranch`, `deleteBranch` — owner only. Cannot delete the default branch or a branch with active staff.
+
 ---
 
 ## 7. Known Issues & Fixes Applied
@@ -531,6 +574,28 @@ else showError(res.error);
 | SW intercepting Supabase auth POSTs → `cache.put()` rejects | Matcher limited to GET only + bypass path regex | `src/app/sw.ts` |
 | Audit trigger failing | Separate migrations 0009 + 0011 applied | Supabase SQL editor |
 | Session timeout too aggressive | 30 min idle, checks every 1 min | `use-session-timeout.ts` |
+
+### Security hardening applied (2026-06-14)
+| Fix | Where |
+|---|---|
+| `app_insert_rla` / `app_insert_aal` INSERT policies dropped — rate_limit.ts uses admin client (service_role) | 0016 |
+| `inv_token_select` (`USING(true)`) + `inv_owner_all` replaced with `invitations_owner_manage` + `invitations_read_for_acceptance` (email-scoped) | 0016 |
+| `auth_branch_ids()` + `_guard_branch()` enforce branch scope at DB level on all 6 operational tables (SELECT) and 4 write RPCs | 0016 |
+| `search_path` set on `guard_last_owner_delete`, `guard_last_owner_update`, `seed_default_roles`, `fn_auto_audit` | 0016 |
+| `profiles_team_select` policy added (members can read teammates' display names for staff list) | 0016 |
+| `acceptInvitation` verifies `inv.email === user.email` (IDOR fix) | `roles/actions.ts:358` |
+| `getBatchesForProduct` validates `branchId ∈ allowedBranchIds` | `damage/actions.ts:34`, `damaged/actions.ts:34` |
+| `upsertCountItem` + `getCountSessionDetails` validate branch | `count/actions.ts:88,157` |
+| `listWebhooks` + `createWebhook` validate branch | `webhook-actions.ts:25,44` |
+| `updateProfile` + `updateTenant` gate inputs with Zod schemas | `settings/actions.ts:7-15` |
+| `getAuditLog` caps `limit` at 500 | `reports/audit/actions.ts:46` |
+| `signUp` requires `captchaToken` | `auth/actions.ts:65` |
+| `getClientInfo` prefers `x-vercel-forwarded-for` (Vercel-trusted header) | `get-client-info.ts:6` |
+| Auth routes log `error.code`/`error.status` only — no raw error objects | `auth/confirm/route.ts:37,57`, `auth/callback/route.ts:44` |
+| Webhook route logs `error.code` only + IP rate limit 30 req/min | `webhook/route.ts:37-39,79` |
+| `sendInvitation` returns full `inviteUrl` — token not exposed directly | `roles/actions.ts:326` |
+| `checkRateLimit` logs on fail-open (never blocks auth flow) | `rate-limit.ts:26` |
+| `auran_active_branch` cookie has `Secure; SameSite=Lax` | `use-active-branch.tsx:29,31` |
 
 ### Supabase free tier constraints
 - **Email rate limit:** 2–3 emails/hour on free plan. Fix: connect Resend via Supabase Auth SMTP.
@@ -586,7 +651,8 @@ src/app/
     │       ├── notifications/    Notification list
     │       ├── barcode-generator/ Barcode label printer
     │       ├── settings/         Profile + company + password
-    │       └── settings/roles/   Custom roles + staff list + invitations (owner only)
+    │       ├── settings/roles/   Custom roles + staff list + invitations (owner only)
+    │       └── settings/branches/ Branch management: create, edit, set default, delete (owner/manager)
     └── join/                     Invitation acceptance landing (/join?token=xxx)
 ```
 
@@ -626,6 +692,7 @@ src/lib/
 ├── audit.ts                      logAudit() for operational events
 ├── auth/
 │   ├── get-session.ts            getSession() — server, cached, returns user + memberships
+│   ├── branch-context.ts         getBranchContext() — resolves activeBranchId + allowedBranchIds from cookie + DB
 │   ├── audit-log.ts              logAuditEvent() — auth events (login/logout/etc.)
 │   ├── rate-limit.ts             checkRateLimit(), recordAttempt()
 │   └── get-client-info.ts        IP + User-Agent extraction for audit
@@ -711,16 +778,26 @@ Namespaces: Auth, Nav, Dashboard, Scanner, Receiving, Damage, Products,
 | Priority | Task | Notes |
 |---|---|---|
 | HIGH | Connect Resend for transactional email | Bypasses Supabase free tier 3 emails/hour limit. Supabase → Auth → SMTP settings |
-| HIGH | Apply `0008_hardening.sql` migration | Security hardening — has not been applied to Supabase yet |
 | HIGH | Test full Google OAuth → onboarding flow | New users only. Ensure `bootstrap_tenant` runs, redirect to `/dashboard` works |
-| MEDIUM | Fix audit trigger (`to_jsonb` pattern) | Migrations 0009 + 0011 attempted fixes; verify in production |
+| HIGH | `database.types.ts` regeneration | Run `supabase gen types` after migrations 0013–0016 to add webhook_endpoints, expiry threshold columns, auth_branch_ids, _guard_branch to generated types |
 | MEDIUM | RTL alignment audit | Check all pages in Arabic mode for mis-aligned UI elements |
 | MEDIUM | PWA install prompt | `pwa-install-button.tsx` exists in components — wire `beforeinstallprompt` event |
-| MEDIUM | `database.types.ts` regeneration | Run `supabase gen types` after any new migration to keep types current |
+| MEDIUM | Expiry alert thresholds UI | 0015 added the DB columns; build the settings UI to let owners set per-product / per-category thresholds |
+| MEDIUM | Expiry monitoring: use per-product thresholds | `morning-check.ts` currently hardcodes 30-day window; update to use `expiry_critical_days` / `expiry_warning_days` |
 | LOW | Custom roles enforcement on page/action level | Currently only built-in roles gate pages; custom role permissions are UI-only |
-| LOW | Branch scoping for staff | `memberships.branch_id` column exists but isn't enforced in page-level gates |
+| LOW | Audit trigger `to_jsonb` — verify in production | Migrations 0011 + 0012 applied the fix; confirm no "record has no field status" errors in Supabase logs |
 | LOW | Presence/smart notification routing | PHASE-10 spec: route notifications to first online user in branch |
 | LOW | Stocktake page completion | Basic UI exists; verify close_count RPC integration |
+
+**Completed this session (2026-06-14):**
+- ✅ `0008_hardening.sql` applied (search_path, FORCE RLS, revoke anon grants)
+- ✅ Branch scoping: `auth_branch_ids()` + `_guard_branch()` + SELECT RLS on 6 tables + 4 write RPCs
+- ✅ Invitations RLS tightened (email-scoped acceptance, owner-only management)
+- ✅ `app_insert_rla` / `app_insert_aal` over-permissive policies dropped
+- ✅ `search_path` set on all trigger/seed functions
+- ✅ All 13 code-level security fixes (IDOR, branch validation, Zod schemas, captcha, audit logging, cookie flags) confirmed in source
+- ✅ Webhook POS import (Phase 11): `webhook_endpoints` table, `webhook_pos_import` RPC, `/api/import/webhook` route, UI in import wizard
+- ✅ Per-product expiry thresholds (0015) added to schema
 
 ---
 
