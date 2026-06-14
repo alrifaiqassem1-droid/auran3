@@ -20,6 +20,7 @@ export async function getMyBranches(): Promise<BranchSummary[]> {
     .in('id', ctx.allowedBranchIds)
     .order('is_default', { ascending: false })
     .order('created_at', { ascending: true });
+  console.log('[getMyBranches]', { allowedBranchIds: ctx.allowedBranchIds, returned: data });
   return (data ?? []) as BranchSummary[];
 }
 
