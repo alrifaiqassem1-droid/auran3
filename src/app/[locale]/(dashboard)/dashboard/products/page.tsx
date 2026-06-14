@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { getBranchContext } from '@/lib/auth/branch-context';
 import { ProductList, ProductListSkeleton } from '@/components/products/product-list';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
@@ -10,14 +11,13 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 }
 
 async function ProductsData() {
-  const supabase = await createServerClient();
-
-  const { data: tenantIds } = await supabase.rpc('auth_tenant_ids');
-  const tenantId: string | undefined = tenantIds?.[0];
-
-  if (!tenantId) {
+  const ctx = await getBranchContext();
+  if (!ctx) {
     return <div className="text-center text-muted-foreground py-12">لا توجد بيانات</div>;
   }
+  const { activeBranchId, tenantId } = ctx;
+
+  const supabase = await createServerClient();
 
   const [{ data: products }, { data: categories }] = await Promise.all([
     supabase
@@ -38,12 +38,13 @@ async function ProductsData() {
       .order('name', { ascending: true }),
   ]);
 
-  // حساب إجمالي المخزون لكل منتج
-  const { data: batches } = await supabase
+  // حساب إجمالي المخزون لكل منتج — مُصفَّى حسب الفرع النشط
+  const batchQ = supabase
     .from('stock_batches')
     .select('product_id, quantity')
     .eq('tenant_id', tenantId)
     .gt('quantity', 0);
+  const { data: batches } = await (activeBranchId ? batchQ.eq('branch_id', activeBranchId) : batchQ);
 
   const stockMap: Record<string, number> = {};
   for (const b of batches ?? []) {

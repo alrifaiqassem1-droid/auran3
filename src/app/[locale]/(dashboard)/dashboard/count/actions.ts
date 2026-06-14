@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { getBranchContext } from '@/lib/auth/branch-context';
 import { upsertCountItemSchema } from '@/lib/validators/count';
 import { rpcOpenCount, rpcUpsertCountItem } from '@/lib/supabase/typed-rpc';
 
@@ -55,17 +56,18 @@ export async function getProductsForCount(): Promise<CountProduct[]> {
 }
 
 export async function getCountSessions(): Promise<CountSessionSummary[]> {
+  const ctx = await getBranchContext();
+  if (!ctx) return [];
+  const { activeBranchId, tenantId } = ctx;
   const supabase = await createServerClient();
-  const { data: tenantIds } = await supabase.rpc('auth_tenant_ids');
-  const tenantId: string | undefined = tenantIds?.[0];
-  if (!tenantId) return [];
 
-  const { data } = await supabase
+  const q = supabase
     .from('inventory_counts')
     .select('id, status, created_at, closed_at')
     .eq('tenant_id', tenantId)
     .order('created_at', { ascending: false })
     .limit(30);
+  const { data } = await (activeBranchId ? q.eq('branch_id', activeBranchId) : q);
   return (data as CountSessionSummary[]) ?? [];
 }
 

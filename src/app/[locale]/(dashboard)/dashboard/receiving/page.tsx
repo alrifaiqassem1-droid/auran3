@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { getBranchContext } from '@/lib/auth/branch-context';
 import { ReceiveCart } from '@/components/receiving/receive-cart';
 import { ReceiptsHistory } from '@/components/receiving/receipts-history';
 
@@ -19,12 +20,23 @@ export default async function ReceivingPage({
   searchParams: Promise<{ barcode?: string }>;
 }) {
   const { barcode } = await searchParams;
-  const supabase = await createServerClient();
-
-  const { data: tenantIds } = await supabase.rpc('auth_tenant_ids');
-  const tenantId: string | undefined = tenantIds?.[0];
+  const [ctx, supabase] = await Promise.all([getBranchContext(), createServerClient()]);
+  const tenantId = ctx?.tenantId;
+  const activeBranchId = ctx?.activeBranchId;
 
   const empty = Promise.resolve({ data: [] });
+
+  const receiptsQ = tenantId
+    ? (() => {
+        const q = supabase
+          .from('goods_receipts')
+          .select('id, reference, total_cost, created_at, supplier_id, suppliers(name), goods_receipt_items(id)')
+          .eq('tenant_id', tenantId)
+          .order('created_at', { ascending: false })
+          .limit(50);
+        return activeBranchId ? q.eq('branch_id', activeBranchId) : q;
+      })()
+    : empty;
 
   const [suppliersRes, categoriesRes, productsRes, receiptsRes] = await Promise.all([
     tenantId
@@ -41,14 +53,7 @@ export default async function ReceivingPage({
           .eq('is_active', true)
           .order('name')
       : empty,
-    tenantId
-      ? supabase
-          .from('goods_receipts')
-          .select('id, reference, total_cost, created_at, supplier_id, suppliers(name), goods_receipt_items(id)')
-          .eq('tenant_id', tenantId)
-          .order('created_at', { ascending: false })
-          .limit(50)
-      : empty,
+    receiptsQ,
   ]);
 
   const t = await getTranslations('Receiving');
