@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { createClient as createServerClient } from '@/lib/supabase/server';
+import { getBranchContext } from '@/lib/auth/branch-context';
 import { getTenantInfo, getVatReport, getDamageReport, getExpiryData } from './actions';
 import { VatReport } from '@/components/reports/vat-report';
 import { DamageReport } from '@/components/reports/damage-report';
@@ -16,23 +16,10 @@ export async function generateMetadata({
   return { title: t('pageTitle') };
 }
 
-async function getActiveBranchId(): Promise<string | null> {
-  const supabase = await createServerClient();
-  const { data: tenantIds } = await supabase.rpc('auth_tenant_ids');
-  const tenantId: string | undefined = tenantIds?.[0];
-  if (!tenantId) return null;
-  const { data } = await supabase
-    .from('branches')
-    .select('id')
-    .eq('tenant_id', tenantId)
-    .eq('is_default', true)
-    .single();
-  return data?.id ?? null;
-}
-
 export default async function ReportsPage() {
   const t = await getTranslations('Reports');
-  const branchId = await getActiveBranchId();
+  const ctx = await getBranchContext();
+  const branchId = ctx?.activeBranchId ?? null;
 
   if (!branchId) {
     return (
