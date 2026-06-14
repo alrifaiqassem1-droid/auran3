@@ -41,14 +41,12 @@ export const getBranchContext = cache(async (): Promise<BranchContext | null> =>
   //  cannot rely on branch_id === null to detect full-access users.)
   if (m.role === 'owner' || m.role === 'manager') {
     const supabase = await createClient();
-    const { data: branches, error } = await supabase
+    const { data: branches } = await supabase
       .from('branches')
       .select('id, is_default')
       .eq('tenant_id', tenantId)
       .order('is_default', { ascending: false })
       .order('created_at', { ascending: true });
-
-    console.log('[branch-context] owner/manager branch query', { tenantId, role, membershipBranchId: m.branch_id, dbRows: branches, error });
 
     const list = branches ?? [];
     allowedBranchIds = list.map(b => b.id);
@@ -57,7 +55,6 @@ export const getBranchContext = cache(async (): Promise<BranchContext | null> =>
     // Staff scoped to a single branch — allowed = that branch only.
     allowedBranchIds = [m.branch_id ?? ''].filter(Boolean);
     defaultBranchId = m.branch_id;
-    console.log('[branch-context] staff scoped', { tenantId, role, membershipBranchId: m.branch_id });
   }
 
   // Use the cookie if it refers to a branch this user is allowed to see;

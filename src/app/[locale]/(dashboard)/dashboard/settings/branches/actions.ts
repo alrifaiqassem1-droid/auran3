@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth/get-session';
 import { getBranchContext } from '@/lib/auth/branch-context';
+import { branchSchema } from '@/lib/validators/branch';
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -20,7 +21,6 @@ export async function getMyBranches(): Promise<BranchSummary[]> {
     .in('id', ctx.allowedBranchIds)
     .order('is_default', { ascending: false })
     .order('created_at', { ascending: true });
-  console.log('[getMyBranches]', { allowedBranchIds: ctx.allowedBranchIds, returned: data });
   return (data ?? []) as BranchSummary[];
 }
 
@@ -46,14 +46,16 @@ export async function getBranches(): Promise<BranchRow[]> {
 }
 
 export async function createBranch(name: string, address?: string): Promise<ActionResult> {
+  const parsed = branchSchema.safeParse({ name, address });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Invalid input' };
   const { memberships } = await getSession();
   const m = memberships[0];
   if (!m || !['owner', 'manager'].includes(m.role)) return { ok: false, error: 'Unauthorized' };
   const supabase = await createClient();
   const { error } = await supabase.from('branches').insert({
     tenant_id: m.tenant_id,
-    name,
-    address: address ?? null,
+    name: parsed.data.name,
+    address: parsed.data.address ?? null,
     is_default: false,
   });
   if (error) return { ok: false, error: error.message };
@@ -62,13 +64,15 @@ export async function createBranch(name: string, address?: string): Promise<Acti
 }
 
 export async function updateBranch(id: string, name: string, address?: string): Promise<ActionResult> {
+  const parsed = branchSchema.safeParse({ name, address });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Invalid input' };
   const { memberships } = await getSession();
   const m = memberships[0];
   if (!m || !['owner', 'manager'].includes(m.role)) return { ok: false, error: 'Unauthorized' };
   const supabase = await createClient();
   const { error } = await supabase
     .from('branches')
-    .update({ name, address: address ?? null })
+    .update({ name: parsed.data.name, address: parsed.data.address ?? null })
     .eq('id', id)
     .eq('tenant_id', m.tenant_id);
   if (error) return { ok: false, error: error.message };
@@ -105,6 +109,7 @@ export async function deleteBranch(id: string): Promise<ActionResult> {
     .from('branches')
     .select('is_default')
     .eq('id', id)
+    .eq('tenant_id', m.tenant_id)
     .single();
   if (branch?.is_default) return { ok: false, error: 'cannotDeleteDefault' };
   const { count } = await supabase

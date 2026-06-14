@@ -26,9 +26,9 @@ const COOKIE_MAX_AGE = 365 * 24 * 60 * 60; // 1 year in seconds
 function writeBranchCookie(id: string | null) {
   try {
     if (id) {
-      document.cookie = `${COOKIE_NAME}=${id}; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax`;
+      document.cookie = `${COOKIE_NAME}=${id}; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax; Secure`;
     } else {
-      document.cookie = `${COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax`;
+      document.cookie = `${COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax; Secure`;
     }
   } catch { /* SSR / restricted WebView */ }
 }

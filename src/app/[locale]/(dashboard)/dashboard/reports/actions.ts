@@ -3,6 +3,7 @@
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { roundMoney } from '@/lib/pricing';
 import { expiryStatus } from '@/lib/stock/fefo';
+import { getBranchContext } from '@/lib/auth/branch-context';
 
 // ─── Tenant Info ─────────────────────────────────────────────────────────────
 
@@ -47,10 +48,11 @@ export async function getVatReport(
   from: string,
   to: string,
 ): Promise<VatReport> {
+  const empty: VatReport = { lines: [], totals: { gross: 0, net: 0, vat: 0, transactions: 0 }, period: { from, to } };
+  const ctx = await getBranchContext();
+  if (!ctx || !ctx.allowedBranchIds.includes(branchId)) return empty;
+  const { tenantId } = ctx;
   const supabase = await createServerClient();
-  const { data: tenantIds } = await supabase.rpc('auth_tenant_ids');
-  const tenantId: string | undefined = tenantIds?.[0];
-  if (!tenantId) return { lines: [], totals: { gross: 0, net: 0, vat: 0, transactions: 0 }, period: { from, to } };
 
   const { data: items } = await supabase
     .from('pos_import_items')
@@ -117,10 +119,10 @@ export interface DamageReport {
 }
 
 export async function getDamageReport(branchId: string, monthsBack = 6): Promise<DamageReport> {
+  const ctx = await getBranchContext();
+  if (!ctx || !ctx.allowedBranchIds.includes(branchId)) return { months: [], total_loss: 0, total_qty: 0 };
+  const { tenantId } = ctx;
   const supabase = await createServerClient();
-  const { data: tenantIds } = await supabase.rpc('auth_tenant_ids');
-  const tenantId: string | undefined = tenantIds?.[0];
-  if (!tenantId) return { months: [], total_loss: 0, total_qty: 0 };
 
   const from = new Date();
   from.setMonth(from.getMonth() - monthsBack + 1);
@@ -190,10 +192,10 @@ export interface ExpiryData {
 }
 
 export async function getExpiryData(branchId: string): Promise<ExpiryData> {
+  const ctx = await getBranchContext();
+  if (!ctx || !ctx.allowedBranchIds.includes(branchId)) return { expired: [], critical: [], warning: [], safe: [] };
+  const { tenantId } = ctx;
   const supabase = await createServerClient();
-  const { data: tenantIds } = await supabase.rpc('auth_tenant_ids');
-  const tenantId: string | undefined = tenantIds?.[0];
-  if (!tenantId) return { expired: [], critical: [], warning: [], safe: [] };
 
   const { data } = await supabase
     .from('stock_batches')

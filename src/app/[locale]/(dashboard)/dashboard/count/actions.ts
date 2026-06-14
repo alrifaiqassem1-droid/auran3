@@ -126,9 +126,9 @@ export async function getCountSessionDetails(
 export async function openCount(
   branchId: string,
 ): Promise<{ ok: boolean; countId?: string; error?: string }> {
+  const ctx = await getBranchContext();
+  if (!ctx || !ctx.allowedBranchIds.includes(branchId)) return { ok: false, error: 'غير مصرح' };
   const supabase = await createServerClient();
-  const { data: tenantIds } = await supabase.rpc('auth_tenant_ids');
-  if (!tenantIds?.[0]) return { ok: false, error: 'جلسة غير صالحة' };
   const { data, error } = await rpcOpenCount(supabase, branchId);
   if (error) return { ok: false, error: error.message };
   return { ok: true, countId: data ?? undefined };
