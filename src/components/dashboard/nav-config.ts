@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, ScanLine, Package, Truck,
   ClipboardList, TriangleAlert, Bell, Settings,
-  Upload, BarChart3, Barcode, CalendarClock, Shield,
+  Upload, BarChart3, Barcode, CalendarClock, Shield, Building2,
 } from 'lucide-react';
 import type { ComponentType } from 'react';
 import type { UserRole } from '@/types/db';
@@ -30,6 +30,7 @@ export const navItems: NavItem[] = [
   { key: 'settings',      href: '/dashboard/settings',          icon: Settings,  roles: ['owner', 'manager'] },
   { key: 'roles',         href: '/dashboard/settings/roles',    icon: Shield,    roles: ['owner'] },
   { key: 'audit',         href: '/dashboard/reports/audit',     icon: ClipboardList, roles: ['owner'] },
+  { key: 'branches',      href: '/dashboard/settings/branches', icon: Building2, roles: ['owner', 'manager'] },
 ];
 
 // Bottom primary: home | receiving | scan (FAB) | inventory | [more button auto-generated]
@@ -38,5 +39,5 @@ export const bottomPrimaryKeys    = ['home', 'receiving', 'scan', 'inventory'];
 // Secondary items shown in the "More" bottom sheet
 export const bottomSecondaryKeys  = [
   'stocktake', 'damaged', 'expiry', 'products', 'import', 'reports',
-  'notifications', 'barcode', 'settings', 'roles', 'audit',
+  'notifications', 'barcode', 'settings', 'roles', 'audit', 'branches',
 ];

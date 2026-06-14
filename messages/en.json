@@ -54,6 +54,7 @@
     "expiry": "Expiry",
     "roles": "Roles",
     "audit": "Audit Log",
+    "branches": "Branches",
     "more": "More"
   },
   "Scanner": {
@@ -292,7 +293,25 @@
     "appearanceHint": "Use the theme toggle in the top navigation bar",
     "appSection": "App",
     "installApp": "Install App",
-    "installDesc": "Add AURAN to your home screen for quick access without a browser"
+    "installDesc": "Add AURAN to your home screen for quick access without a browser",
+    "branches": "Branches",
+    "branchesSubtitle": "Manage your store branches",
+    "addBranch": "Add branch",
+    "branchName": "Branch name",
+    "branchAddress": "Address",
+    "defaultBranch": "Default",
+    "setDefault": "Set as default",
+    "noBranches": "No branches yet",
+    "branchCreated": "Branch created",
+    "branchUpdated": "Branch updated",
+    "branchDeleted": "Branch deleted",
+    "defaultBranchSet": "Default branch updated",
+    "cannotDeleteDefault": "Cannot delete the default branch",
+    "branchHasMembers": "Cannot delete a branch that has members",
+    "edit": "Edit",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "saveChanges": "Save changes"
   },
   "System": {
     "offline": "You're offline — operations will be saved locally",

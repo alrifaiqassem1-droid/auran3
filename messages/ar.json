@@ -54,6 +54,7 @@
     "expiry": "الصلاحيات",
     "roles": "الأدوار",
     "audit": "سجل العمليات",
+    "branches": "الفروع",
     "more": "المزيد"
   },
   "Scanner": {
@@ -292,7 +293,25 @@
     "appearanceHint": "استخدم زر تبديل المظهر في شريط التنقل العلوي",
     "appSection": "التطبيق",
     "installApp": "ثبّت التطبيق",
-    "installDesc": "أضف AURAN إلى الشاشة الرئيسية للوصول السريع بدون متصفح"
+    "installDesc": "أضف AURAN إلى الشاشة الرئيسية للوصول السريع بدون متصفح",
+    "branches": "الفروع",
+    "branchesSubtitle": "إدارة فروع متجرك",
+    "addBranch": "إضافة فرع",
+    "branchName": "اسم الفرع",
+    "branchAddress": "العنوان",
+    "defaultBranch": "الافتراضي",
+    "setDefault": "تعيين كافتراضي",
+    "noBranches": "لا توجد فروع بعد",
+    "branchCreated": "تم إنشاء الفرع",
+    "branchUpdated": "تم تحديث الفرع",
+    "branchDeleted": "تم حذف الفرع",
+    "defaultBranchSet": "تم تعيين الفرع الافتراضي",
+    "cannotDeleteDefault": "لا يمكن حذف الفرع الافتراضي",
+    "branchHasMembers": "لا يمكن حذف فرع به أعضاء",
+    "edit": "تعديل",
+    "delete": "حذف",
+    "cancel": "إلغاء",
+    "saveChanges": "حفظ التغييرات"
   },
   "System": {
     "offline": "أنت غير متصل بالإنترنت — ستُحفظ العمليات محلياً",
