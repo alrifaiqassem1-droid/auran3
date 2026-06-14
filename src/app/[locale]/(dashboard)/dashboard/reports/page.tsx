@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getBranchContext } from '@/lib/auth/branch-context';
+import { getMyBranches } from '../settings/branches/actions';
 import { getTenantInfo, getVatReport, getDamageReport, getExpiryData } from './actions';
 import { VatReport } from '@/components/reports/vat-report';
 import { DamageReport } from '@/components/reports/damage-report';
@@ -35,12 +36,14 @@ export default async function ReportsPage() {
   const from = new Date(y, m, 1).toISOString();
   const to   = new Date(y, m + 1, 0, 23, 59, 59).toISOString();
 
-  const [tenant, vatData, damageData, expiryData] = await Promise.all([
+  const [tenant, vatData, damageData, expiryData, branches] = await Promise.all([
     getTenantInfo(),
     getVatReport(branchId, from, to),
     getDamageReport(branchId, 6),
     getExpiryData(branchId),
+    getMyBranches(),
   ]);
+  const branchName = branches.find(b => b.id === branchId)?.name ?? null;
 
   return (
     <div className="container max-w-3xl px-4 py-6">
@@ -57,7 +60,7 @@ export default async function ReportsPage() {
         </TabsList>
 
         <TabsContent value="vat" className="mt-5">
-          <VatReport branchId={branchId} tenant={tenant} initialData={vatData} />
+          <VatReport branchId={branchId} tenant={tenant} initialData={vatData} branchName={branchName} />
         </TabsContent>
 
         <TabsContent value="damage" className="mt-5">

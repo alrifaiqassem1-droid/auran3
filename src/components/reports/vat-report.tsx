@@ -20,6 +20,7 @@ interface Props {
   branchId: string;
   tenant: TenantInfo | null;
   initialData: VatReportData;
+  branchName?: string | null;
 }
 
 function periodRange(period: string): { from: string; to: string } {
@@ -68,7 +69,7 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
   );
 }
 
-export function VatReport({ branchId, tenant, initialData }: Props) {
+export function VatReport({ branchId, tenant, initialData, branchName }: Props) {
   const t = useTranslations('Reports');
   const [period, setPeriod] = useState('thisMonth');
   const [data, setData] = useState<VatReportData>(initialData);
@@ -121,6 +122,11 @@ export function VatReport({ branchId, tenant, initialData }: Props) {
                 </span>
               )}
             </div>
+          )}
+          {branchName && (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {t('branchLabel')}: {branchName}
+            </p>
           )}
           <p className="mt-0.5 text-xs text-muted-foreground">
             {t('vatPeriod')}: {fmtDate(data.period.from)} — {fmtDate(data.period.to)}

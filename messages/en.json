@@ -423,6 +423,7 @@
     "pageTitle": "Reports",
     "pageSubtitle": "VAT, damage losses, and expiry tracking",
     "noBranch": "No default branch found",
+    "branchLabel": "Branch",
     "tabVat": "VAT",
     "tabDamage": "Damage",
     "tabExpiry": "Expiry",
