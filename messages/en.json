@@ -55,6 +55,7 @@
     "roles": "Roles",
     "audit": "Audit Log",
     "branches": "Branches",
+    "categories": "Categories",
     "more": "More"
   },
   "Scanner": {
@@ -677,5 +678,21 @@
     "vatIncluded": "VAT inclusive",
     "vatIncludedShort": "Incl. 5% VAT",
     "previewHint": "This is exactly what prints"
+  },
+  "Categories": {
+    "pageTitle": "Categories",
+    "pageSubtitle": "Manage product categories and expiry thresholds",
+    "addNew": "Add new category",
+    "namePlaceholder": "e.g. Dairy, Meat, Vegetables...",
+    "add": "Add",
+    "loading": "Loading...",
+    "empty": "No categories yet",
+    "addSuccess": "Category added",
+    "addError": "Failed to add category",
+    "deleteSuccess": "Category deleted",
+    "deleteError": "Failed to delete category",
+    "loadError": "Failed to load categories",
+    "criticalDays": "Critical: {n}d",
+    "warningDays": "Warning: {n}d"
   }
 }

@@ -55,6 +55,7 @@
     "roles": "الأدوار",
     "audit": "سجل العمليات",
     "branches": "الفروع",
+    "categories": "الفئات",
     "more": "المزيد"
   },
   "Scanner": {
@@ -677,5 +678,21 @@
     "vatIncluded": "شامل ضريبة القيمة المضافة",
     "vatIncludedShort": "شامل ض.ق.م 5%",
     "previewHint": "هذا ما سيُطبع تماماً"
+  },
+  "Categories": {
+    "pageTitle": "الفئات",
+    "pageSubtitle": "إدارة فئات المنتجات وعتبات الانتهاء",
+    "addNew": "إضافة فئة جديدة",
+    "namePlaceholder": "مثال: ألبان، لحوم، خضار...",
+    "add": "إضافة",
+    "loading": "جاري التحميل...",
+    "empty": "لا توجد فئات بعد",
+    "addSuccess": "تمت إضافة الفئة",
+    "addError": "فشل إضافة الفئة",
+    "deleteSuccess": "تم حذف الفئة",
+    "deleteError": "فشل حذف الفئة",
+    "loadError": "فشل تحميل الفئات",
+    "criticalDays": "حرج: {n} يوم",
+    "warningDays": "تحذير: {n} يوم"
   }
 }
