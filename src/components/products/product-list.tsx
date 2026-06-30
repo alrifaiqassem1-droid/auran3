@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { Search, Plus, PackageOpen } from 'lucide-react';
+import { Search, Plus, PackageOpen, FileUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 import { ProductCard } from './product-card';
 import { ProductForm } from './product-form';
+import { ProductImportDialog } from './product-import-dialog';
 
 interface Category {
   id: string;
@@ -50,6 +51,7 @@ interface Props {
 
 export function ProductList({ products, categories }: Props) {
   const t = useTranslations('Products');
+  const tImport = useTranslations('ProductImport');
 
   const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
@@ -58,6 +60,7 @@ export function ProductList({ products, categories }: Props) {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | undefined>(undefined);
+  const [importOpen, setImportOpen] = useState(false);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -93,6 +96,15 @@ export function ProductList({ products, categories }: Props) {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setImportOpen(true)}
+          className="gap-1 shrink-0"
+        >
+          <FileUp className="h-4 w-4" />
+          <span className="hidden sm:inline">{tImport('importCsv')}</span>
+        </Button>
         <Button size="sm" onClick={openAdd} className="gap-1 shrink-0">
           <Plus className="h-4 w-4" />
           <span className="hidden sm:inline">{t('addProduct')}</span>
@@ -166,6 +178,8 @@ export function ProductList({ products, categories }: Props) {
         product={editProduct}
         categories={categories}
       />
+
+      <ProductImportDialog open={importOpen} onOpenChange={setImportOpen} />
 
       {/* FAB for mobile */}
       <motion.div
