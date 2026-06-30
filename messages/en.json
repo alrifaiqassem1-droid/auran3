@@ -768,5 +768,12 @@
     "loadError": "Failed to load categories",
     "criticalDays": "Critical: {n}d",
     "warningDays": "Warning: {n}d"
+  },
+  "Status": {
+    "expired":  "Expired",
+    "critical": "Critical",
+    "warning":  "Warning",
+    "safe":     "Safe",
+    "none":     "No expiry"
   }
 }

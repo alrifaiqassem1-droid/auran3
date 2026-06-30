@@ -34,7 +34,7 @@ Stack:
 
 ---
 
-## ملفات مقفولة — لا تلمسها إطلاقاً
+## ملفات مقفولة — للقراءة/الاستيراد فقط، لا تُعدَّل أبداً
 
 src/components/scanner/scanner-layout.tsx
 src/hooks/use-barcode-scanner.ts
@@ -44,6 +44,7 @@ src/lib/offline/db.ts
 src/lib/offline/queue.ts
 supabase/migrations/0010_core_rpcs.sql
 
+يمكن استيراد أنواع ودوال هذه الملفات (مثل `ExpiryStatus` من fefo.ts) — لكن لا تكتب داخلها سطراً واحداً.
 الكاميرا تنكسر بسهولة وتسبب regressions كبيرة. منطق FEFO في TypeScript يجب أن يطابق SQL حرفياً. إن احتجت تعديلاً هنا، نبّه أولاً واشرح الأثر قبل أي سطر.
 
 ---
@@ -58,6 +59,10 @@ supabase/migrations/0010_core_rpcs.sql
 6. Server Components افتراضياً. أضف 'use client' فقط عند الحاجة لـ browser APIs أو state.
 7. كل النصوص عبر next-intl — لا نصوص ثابتة في JSX (عدا onboarding المستثنى).
 8. TypeScript strict. لا as any — استخدم as unknown as T عند الضرورة.
+9. Additive-only: كل تغيير إضافي فقط — لا تحذف أو تغيّر قيمة قائمة في CSS أو tailwind.config أو ملفات الترجمة.
+10. RTL بخصائص منطقية: استخدم `margin-inline-start`, `padding-inline-end`, `inset-inline-*`، وفي Tailwind: `ms-*`, `me-*`, `ps-*`, `pe-*`, `start-*`, `end-*` — لا `margin-left/right` ولا `left/right` مطلقاً.
+11. فحص build إلزامي: `npx tsc --noEmit && npm run build` قبل أي deploy — لا تُكمل إن فشل أيٌّ منهما.
+12. مهارة الواجهات: استدعِ مهارة `frontend-design` قبل بناء أي مكوّن واجهة جديد.
 
 ---
 
@@ -81,6 +86,7 @@ supabase/migrations/0010_core_rpcs.sql
 
 ## المهارات المتاحة
 
+frontend-design — بناء مكوّنات الواجهة (استدعِها أولاً قبل أي مكوّن UI جديد)
 .claude/skills/fefo-and-stock.md — منطق FEFO، الدفعات، حالات الانتهاء
 .claude/skills/supabase-rpc-review.md — مراجعة RPCs الذرّية + RLS + idempotency
 .claude/skills/arabic-rtl-ui.md — معايير الواجهة العربية + RTL + الأرقام اللاتينية

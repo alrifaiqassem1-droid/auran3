@@ -13,6 +13,12 @@
     --destructive: 0 72% 48%; --destructive-foreground: 40 30% 98%;
     --border: 40 12% 86%; --input: 40 12% 86%; --ring: 41 68% 48%;
     --radius: 0.9rem;
+    /* ── Status colours (light) ── */
+    --status-expired-bg: 0 72% 48%; --status-expired-fg: 40 30% 98%;
+    --status-critical-bg: 20 90% 50%; --status-critical-fg: 40 30% 98%;
+    --status-warning-bg: 41 68% 48%; --status-warning-fg: 240 10% 6%;
+    --status-safe-bg: 142 70% 40%; --status-safe-fg: 40 30% 98%;
+    --status-none-bg: 40 12% 86%; --status-none-fg: 24 6% 42%;
   }
   .dark {
     --background: 240 6% 4%; --foreground: 40 20% 96%;
@@ -23,6 +29,12 @@
     --accent: 240 5% 14%; --accent-foreground: 40 20% 96%;
     --destructive: 0 64% 52%; --destructive-foreground: 40 20% 96%;
     --border: 240 5% 16%; --input: 240 5% 16%; --ring: 41 72% 56%;
+    /* ── Status colours (dark) ── */
+    --status-expired-bg: 0 64% 52%; --status-expired-fg: 40 20% 96%;
+    --status-critical-bg: 20 85% 55%; --status-critical-fg: 240 10% 6%;
+    --status-warning-bg: 41 72% 56%; --status-warning-fg: 240 10% 6%;
+    --status-safe-bg: 142 65% 45%; --status-safe-fg: 240 10% 6%;
+    --status-none-bg: 240 5% 16%; --status-none-fg: 40 8% 62%;
   }
   html, body {
     overflow-x: hidden;

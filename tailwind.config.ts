@@ -22,6 +22,13 @@ const config: Config = {
         accent: { DEFAULT: 'hsl(var(--accent))', foreground: 'hsl(var(--accent-foreground))' },
         card: { DEFAULT: 'hsl(var(--card))', foreground: 'hsl(var(--card-foreground))' },
         destructive: { DEFAULT: 'hsl(var(--destructive))', foreground: 'hsl(var(--destructive-foreground))' },
+        status: {
+          expired:  { DEFAULT: 'hsl(var(--status-expired-bg))',  foreground: 'hsl(var(--status-expired-fg))'  },
+          critical: { DEFAULT: 'hsl(var(--status-critical-bg))', foreground: 'hsl(var(--status-critical-fg))' },
+          warning:  { DEFAULT: 'hsl(var(--status-warning-bg))',  foreground: 'hsl(var(--status-warning-fg))'  },
+          safe:     { DEFAULT: 'hsl(var(--status-safe-bg))',     foreground: 'hsl(var(--status-safe-fg))'     },
+          none:     { DEFAULT: 'hsl(var(--status-none-bg))',     foreground: 'hsl(var(--status-none-fg))'     },
+        },
       },
       borderRadius: { lg: 'var(--radius)', md: 'calc(var(--radius) - 2px)', sm: 'calc(var(--radius) - 4px)' },
       keyframes: {

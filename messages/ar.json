@@ -768,5 +768,12 @@
     "loadError": "فشل تحميل الفئات",
     "criticalDays": "حرج: {n} يوم",
     "warningDays": "تحذير: {n} يوم"
+  },
+  "Status": {
+    "expired":  "منتهٍ",
+    "critical": "حرج",
+    "warning":  "تحذير",
+    "safe":     "آمن",
+    "none":     "بلا تاريخ"
   }
 }
