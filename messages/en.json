@@ -56,7 +56,8 @@
     "audit": "Audit Log",
     "branches": "Branches",
     "categories": "Categories",
-    "more": "More"
+    "more": "More",
+    "signOut": "Sign out"
   },
   "Scanner": {
     "title": "Barcode Scanner",
