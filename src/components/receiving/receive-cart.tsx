@@ -322,13 +322,15 @@ function AddManuallySheet({
 // ─── ReceiveCart ──────────────────────────────────────────────────────────────
 
 interface Props {
-  suppliers:      { id: string; name: string }[];
-  categories:     { id: string; name: string }[];
-  products:       ProductRow[];
-  initialBarcode?: string | null;
+  suppliers:          { id: string; name: string }[];
+  categories:         { id: string; name: string }[];
+  products:           ProductRow[];
+  initialBarcode?:    string | null;
+  initialSupplierId?: string;
+  initialReference?:  string;
 }
 
-export function ReceiveCart({ suppliers, categories, products, initialBarcode }: Props) {
+export function ReceiveCart({ suppliers, categories, products, initialBarcode, initialSupplierId, initialReference }: Props) {
   const t = useTranslations('Receiving');
   const { activeBranchId, activeMembership } = useActiveBranch();
   const { celebrate } = useCelebration();
@@ -336,8 +338,8 @@ export function ReceiveCart({ suppliers, categories, products, initialBarcode }:
   const reduced = useReducedMotion();
 
   const [cart,            setCart]            = useState<CartItem[]>([]);
-  const [supplierId,      setSupplierId]      = useState('');
-  const [reference,       setReference]       = useState('');
+  const [supplierId,      setSupplierId]      = useState(initialSupplierId ?? '');
+  const [reference,       setReference]       = useState(initialReference ?? '');
   const [showScanner,     setShowScanner]     = useState(false);
   const [showManual,      setShowManual]      = useState(false);
   const [isConfirming,    setIsConfirming]    = useState(false);
