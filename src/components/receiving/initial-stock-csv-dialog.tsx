@@ -39,6 +39,19 @@ function parseNonNegNumber(raw: string): number | null {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
+// ─── Barcode normalizer ───────────────────────────────────────────────────────
+// Excel sometimes exports long barcodes in scientific notation (e.g. 6.281E+12).
+// Convert to plain integer string so lookup against DB values works.
+function normalizeBarcode(raw: string): string {
+  const s = raw.trim();
+  if (s === '') return '';
+  if (/[eE]/.test(s)) {
+    const n = Number(s);
+    if (Number.isFinite(n) && n === Math.round(n)) return String(Math.round(n));
+  }
+  return s;
+}
+
 // ─── CSV parsing ─────────────────────────────────────────────────────────────
 function splitCsvLine(line: string): string[] {
   const out: string[] = [];
@@ -101,8 +114,8 @@ function parseCsvText(
     const raw: Record<string, string> = {};
     headers.forEach((h, idx) => { raw[h] = (values[idx] ?? '').trim(); });
 
-    // Resolve product — barcode first, then name
-    const barcodeRaw = (raw['barcode'] ?? '').trim();
+    // Resolve product — barcode first (normalized), then name (case-insensitive)
+    const barcodeRaw = normalizeBarcode(raw['barcode'] ?? '');
     const nameRaw    = (raw['product_name'] ?? raw['name'] ?? '').trim();
     const identifier = barcodeRaw || nameRaw;
 
