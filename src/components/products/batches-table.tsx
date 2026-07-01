@@ -96,8 +96,9 @@ export function BatchesTable({ batches, unit }: Props) {
       </div>
 
       <div className="rounded-lg border overflow-hidden">
+        <div className="max-h-[70vh] overflow-y-auto">
         <Table>
-          <TableHeader>
+          <TableHeader className="sticky top-0 z-10 !bg-background">
             <TableRow>
               <TableHead className="text-xs">{t('quantity')}</TableHead>
               <TableHead className="text-xs">{t('costPrice')}</TableHead>
@@ -137,6 +138,7 @@ export function BatchesTable({ batches, unit }: Props) {
             })}
           </TableBody>
         </Table>
+        </div>
       </div>
     </div>
   );

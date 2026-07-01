@@ -139,8 +139,9 @@ export function DamageReport({ branchId, initialData }: Props) {
       {/* Monthly breakdown table */}
       {data.months.length > 0 && (
         <div className="overflow-hidden rounded-xl border border-border/60">
+          <div className="max-h-[380px] overflow-y-auto">
           <table className="w-full text-sm">
-            <thead className="border-b border-border/60 bg-muted/40">
+            <thead className="border-b border-border/60 bg-muted/40 sticky top-0 z-10 !bg-background">
               <tr>
                 {[t('month'), t('lossValue'), t('quantity'), t('records')].map((h) => (
                   <th key={h} className="px-3 py-2 text-end text-[11px] font-semibold uppercase tracking-wide text-muted-foreground first:text-start">
@@ -162,6 +163,7 @@ export function DamageReport({ branchId, initialData }: Props) {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

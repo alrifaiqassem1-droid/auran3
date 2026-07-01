@@ -151,8 +151,9 @@ export function AuditClient({ initialEntries }: { initialEntries: AuditEntry[] }
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-border/60">
+          <div className="max-h-[65vh] overflow-y-auto">
           <table className="w-full text-sm">
-            <thead className="border-b border-border/60 bg-muted/30">
+            <thead className="border-b border-border/60 bg-muted/30 sticky top-0 z-10 !bg-background">
               <tr>
                 <th className="px-4 py-3 text-start text-xs font-semibold text-muted-foreground">{t('colDate')}</th>
                 <th className="px-4 py-3 text-start text-xs font-semibold text-muted-foreground">{t('colUser')}</th>
@@ -185,6 +186,7 @@ export function AuditClient({ initialEntries }: { initialEntries: AuditEntry[] }
               ))}
             </tbody>
           </table>
+          </div>
           <div className="border-t border-border/40 px-4 py-2 text-xs text-muted-foreground">
             {t('entriesCount', { n: entries.length })}
           </div>
